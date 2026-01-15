@@ -1,16 +1,62 @@
 import SwiftUI
 
+// MARK: - Date Filter
+enum DateFilter: Hashable {
+    case month(year: Int, month: Int)
+    case allTime
+    
+    var displayName: String {
+        switch self {
+        case .month(let year, let month):
+            let formatter = DateFormatter()
+            formatter.dateFormat = "MMM yyyy"
+            var components = DateComponents()
+            components.year = year
+            components.month = month
+            components.day = 1
+            if let date = Calendar.current.date(from: components) {
+                return formatter.string(from: date)
+            }
+            return "\(month)/\(year)"
+        case .allTime:
+            return "Till Date"
+        }
+    }
+    
+    static func currentMonth() -> DateFilter {
+        let now = Date()
+        let calendar = Calendar.current
+        return .month(
+            year: calendar.component(.year, from: now),
+            month: calendar.component(.month, from: now)
+        )
+    }
+    
+    func matches(date: Date) -> Bool {
+        switch self {
+        case .month(let year, let month):
+            let calendar = Calendar.current
+            let dateYear = calendar.component(.year, from: date)
+            let dateMonth = calendar.component(.month, from: date)
+            return dateYear == year && dateMonth == month
+        case .allTime:
+            return true
+        }
+    }
+}
+
 struct ContentView: View {
     @StateObject private var expenseStorage = ExpenseStorage()
     @StateObject private var mappingStorage = MappingStorage.shared
+    @StateObject private var themeSettings = ThemeSettings.shared
     
-    @State private var smsText: String = ""
     @State private var showingInput = false
     @State private var showingAdmin = false
     @State private var showingQueue = false
     @State private var lastParsedMessage: String?
     @State private var isError = false
     @State private var pendingCount = 0
+    @State private var selectedFilter: DateFilter = DateFilter.currentMonth()
     
     private let queueStorage = SharedQueueStorage.shared
     
@@ -18,8 +64,68 @@ struct ContentView: View {
         SMSParser(mappingStorage: mappingStorage)
     }
     
+    private var tintColor: Color {
+        themeSettings.accentColor.color
+    }
+    
+    // Get all unique months from expenses
+    private var availableMonths: [DateFilter] {
+        let calendar = Calendar.current
+        var monthSet = Set<String>()
+        var months: [DateFilter] = []
+        
+        for expense in expenseStorage.expenses {
+            let year = calendar.component(.year, from: expense.date)
+            let month = calendar.component(.month, from: expense.date)
+            let key = "\(year)-\(month)"
+            
+            if !monthSet.contains(key) {
+                monthSet.insert(key)
+                months.append(.month(year: year, month: month))
+            }
+        }
+        
+        // Sort by date descending (newest first)
+        return months.sorted { m1, m2 in
+            if case .month(let y1, let mo1) = m1, case .month(let y2, let mo2) = m2 {
+                if y1 != y2 { return y1 > y2 }
+                return mo1 > mo2
+            }
+            return false
+        }
+    }
+    
+    // Filter options: current month first, then other months, then "Till Date"
+    private var filterOptions: [DateFilter] {
+        var options: [DateFilter] = []
+        let currentMonth = DateFilter.currentMonth()
+        
+        // Add current month first if it has expenses or as default
+        options.append(currentMonth)
+        
+        // Add other months (excluding current month if already added)
+        for month in availableMonths {
+            if case .month(let y1, let m1) = month,
+               case .month(let y2, let m2) = currentMonth {
+                if y1 != y2 || m1 != m2 {
+                    options.append(month)
+                }
+            }
+        }
+        
+        // Add "Till Date" option
+        options.append(.allTime)
+        
+        return options
+    }
+    
+    // Filtered expenses based on selected filter
+    private var filteredExpenses: [Expense] {
+        expenseStorage.expenses.filter { selectedFilter.matches(date: $0.date) }
+    }
+    
     private var categoryTotals: [CategoryTotal] {
-        let grouped = Dictionary(grouping: expenseStorage.expenses) { $0.category }
+        let grouped = Dictionary(grouping: filteredExpenses) { $0.category }
         return grouped.map { category, items in
             CategoryTotal(
                 category: category,
@@ -30,166 +136,176 @@ struct ContentView: View {
     }
     
     private var grandTotal: Double {
-        expenseStorage.expenses.reduce(0) { $0 + $1.amount }
+        filteredExpenses.reduce(0) { $0 + $1.amount }
     }
     
     var body: some View {
         NavigationStack {
-            ZStack {
-                AppTheme.background.ignoresSafeArea()
-                
-                VStack(spacing: 0) {
-                    // Pending queue banner
-                    if pendingCount > 0 {
+            List {
+                // Pending SMS Banner
+                if pendingCount > 0 {
+                    Section {
                         Button(action: { showingQueue = true }) {
-                            HStack {
+                            Label {
+                                HStack {
+                                    Text("\(pendingCount) SMS\(pendingCount > 1 ? "s" : "") pending")
+                                    Spacer()
+                                    Text("Review")
+                                        .foregroundStyle(.secondary)
+                                }
+                            } icon: {
                                 Image(systemName: "tray.full.fill")
-                                    .foregroundColor(AppTheme.accent)
-                                Text("\(pendingCount) SMS\(pendingCount > 1 ? "s" : "") pending")
-                                    .fontWeight(.medium)
-                                Spacer()
-                                Text("Review")
-                                    .fontWeight(.semibold)
-                                Image(systemName: "chevron.right")
+                                    .foregroundStyle(tintColor)
                             }
-                            .font(.subheadline)
-                            .foregroundColor(AppTheme.textPrimary)
-                            .padding()
-                            .background(AppTheme.accent.opacity(0.15))
                         }
                     }
-                    
-                    // Header with Pie Chart
+                }
+                
+                // Date Filter Section
+                Section {
+                    Menu {
+                        ForEach(filterOptions, id: \.self) { filter in
+                            Button {
+                                withAnimation {
+                                    selectedFilter = filter
+                                }
+                            } label: {
+                                HStack {
+                                    if filter == .allTime {
+                                        Label(filter.displayName, systemImage: "calendar.badge.clock")
+                                    } else {
+                                        Label(filter.displayName, systemImage: "calendar")
+                                    }
+                                    
+                                    if selectedFilter == filter {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            Label {
+                                Text(selectedFilter.displayName)
+                                    .fontWeight(.medium)
+                            } icon: {
+                                Image(systemName: selectedFilter == .allTime ? "calendar.badge.clock" : "calendar")
+                                    .foregroundStyle(tintColor)
+                            }
+                            
+                            Spacer()
+                            
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                
+                // Summary Section
+                Section {
                     VStack(spacing: 16) {
-                        Text("Total Expenses")
-                            .font(.subheadline)
-                            .foregroundColor(AppTheme.textSecondary)
-                        
                         if categoryTotals.isEmpty {
                             // Empty state
-                            Circle()
-                                .stroke(AppTheme.cardBackgroundLight, lineWidth: 20)
-                                .frame(width: 160, height: 160)
-                                .overlay(
-                                    VStack(spacing: 4) {
-                                        Text("₹0")
-                                            .font(.system(size: 24, weight: .bold, design: .rounded))
-                                            .foregroundColor(AppTheme.textPrimary)
-                                        Text("No data")
-                                            .font(.caption)
-                                            .foregroundColor(AppTheme.textMuted)
-                                    }
-                                )
+                            VStack(spacing: 12) {
+                                Image(systemName: "chart.pie")
+                                    .font(.system(size: 50))
+                                    .foregroundStyle(.quaternary)
+                                Text("No expenses")
+                                    .font(.headline)
+                                    .foregroundStyle(.secondary)
+                                Text(selectedFilter == .allTime ? "Add your first expense" : "No expenses in \(selectedFilter.displayName)")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .frame(height: 180)
+                            .frame(maxWidth: .infinity)
                         } else {
                             PieChartView(
                                 categoryTotals: categoryTotals,
                                 grandTotal: grandTotal
                             )
-                            .frame(width: 180, height: 180)
+                            .frame(height: 180)
                         }
                         
-                        Text("\(expenseStorage.expenses.count) transactions")
-                            .font(.caption)
-                            .foregroundColor(AppTheme.textMuted)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 24)
-                    .background(AppTheme.cardBackground)
-                    
-                    // Category List
-                    if categoryTotals.isEmpty {
-                        Spacer()
-                        VStack(spacing: 16) {
-                            Image(systemName: "doc.text.magnifyingglass")
-                                .font(.system(size: 60))
-                                .foregroundColor(AppTheme.textMuted)
-                            Text("No expenses yet")
-                                .font(.headline)
-                                .foregroundColor(AppTheme.textSecondary)
-                            Text("Tap + to paste an SMS")
-                                .font(.subheadline)
-                                .foregroundColor(AppTheme.textMuted)
-                        }
-                        Spacer()
-                    } else {
-                        ScrollView {
-                            // Legend
-                            LazyVGrid(columns: [GridItem(.adaptive(minimum: 100))], spacing: 8) {
-                                ForEach(categoryTotals) { item in
-                                    HStack(spacing: 6) {
-                                        Circle()
-                                            .fill(AppTheme.colorForCategory(item.category))
-                                            .frame(width: 8, height: 8)
-                                        Text(item.category)
-                                            .font(.caption)
-                                            .foregroundColor(AppTheme.textSecondary)
-                                    }
-                                }
-                            }
-                            .padding(.horizontal)
-                            .padding(.top, 16)
-                            
-                            // Category rows
-                            LazyVStack(spacing: 12) {
-                                ForEach(categoryTotals) { item in
-                                    NavigationLink(destination: CategoryDetailView(
-                                        category: item.category,
-                                        expenseStorage: expenseStorage
-                                    )) {
-                                        CategoryRow(item: item, grandTotal: grandTotal)
-                                    }
-                                    .buttonStyle(PlainButtonStyle())
-                                }
-                            }
-                            .padding()
-                        }
-                    }
-                    
-                    // Status message
-                    if let message = lastParsedMessage {
-                        Text(message)
-                            .font(.caption)
-                            .fontWeight(.medium)
-                            .foregroundColor(isError ? AppTheme.accent : .green)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
-                            .background(
-                                (isError ? AppTheme.accent : Color.green)
-                                    .opacity(0.15)
+                        // Stats row
+                        HStack(spacing: 0) {
+                            StatItem(
+                                title: "Total",
+                                value: grandTotal.currencyFormatted,
+                                color: tintColor
                             )
-                            .cornerRadius(8)
-                            .padding(.horizontal)
-                            .padding(.bottom, 8)
+                            
+                            Divider()
+                                .frame(height: 40)
+                            
+                            StatItem(
+                                title: "Transactions",
+                                value: "\(filteredExpenses.count)",
+                                color: .secondary
+                            )
+                            
+                            Divider()
+                                .frame(height: 40)
+                            
+                            StatItem(
+                                title: "Categories",
+                                value: "\(categoryTotals.count)",
+                                color: .secondary
+                            )
+                        }
+                    }
+                    .listRowInsets(EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16))
+                }
+                
+                // Categories Section
+                if !categoryTotals.isEmpty {
+                    Section("Categories") {
+                        ForEach(categoryTotals) { item in
+                            NavigationLink(destination: CategoryDetailView(
+                                category: item.category,
+                                expenseStorage: expenseStorage,
+                                dateFilter: selectedFilter
+                            )) {
+                                CategoryRow(item: item, grandTotal: grandTotal)
+                            }
+                        }
+                    }
+                }
+                
+                // Status message
+                if let message = lastParsedMessage {
+                    Section {
+                        Label(message, systemImage: isError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                            .foregroundStyle(isError ? .red : .green)
                     }
                 }
             }
+            .listStyle(.insetGrouped)
             .navigationTitle("Kharcha")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(AppTheme.background, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
+            .tint(tintColor)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: { showingAdmin = true }) {
-                        Image(systemName: "gearshape.fill")
-                            .foregroundColor(AppTheme.textSecondary)
+                        Image(systemName: "gearshape")
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { showingInput = true }) {
                         Image(systemName: "plus.circle.fill")
                             .font(.title2)
-                            .foregroundColor(AppTheme.accent)
                     }
                 }
             }
             .sheet(isPresented: $showingInput) {
                 SMSInputView(
-                    onSubmit: { sms, category in
-                        parseSMS(sms: sms, overrideCategory: category)
+                    parser: parser,
+                    onSubmit: { expense in
+                        addExpense(expense)
                     },
                     onCancel: { showingInput = false }
                 )
+                .tint(tintColor)
             }
             .sheet(isPresented: $showingAdmin) {
                 AdminView(
@@ -199,12 +315,14 @@ struct ContentView: View {
                         expenseStorage.recategorizeAll(using: parser)
                     }
                 )
+                .tint(tintColor)
             }
             .sheet(isPresented: $showingQueue, onDismiss: refreshPendingCount) {
                 QueueReviewView(
                     expenseStorage: expenseStorage,
                     mappingStorage: mappingStorage
                 )
+                .tint(tintColor)
             }
             .onAppear {
                 refreshPendingCount()
@@ -213,45 +331,43 @@ struct ContentView: View {
                 refreshPendingCount()
             }
         }
-        .preferredColorScheme(.dark)
+        .tint(tintColor)
     }
     
     private func refreshPendingCount() {
         pendingCount = queueStorage.pendingCount()
     }
     
-    private func parseSMS(sms: String, overrideCategory: String?) {
-        guard !sms.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            showingInput = false
-            return
-        }
+    private func addExpense(_ expense: Expense) {
+        expenseStorage.append(expense: expense)
+        lastParsedMessage = "Added \(expense.amount.currencyFormatted) to \(expense.category)"
+        isError = false
         
-        if var expense = parser.parse(sms: sms) {
-            // Override category if user selected one
-            if let category = overrideCategory {
-                expense = Expense(
-                    amount: expense.amount,
-                    category: category,
-                    biller: expense.biller,
-                    rawSMS: expense.rawSMS,
-                    date: expense.date
-                )
-            }
-            
-            expenseStorage.append(expense: expense)
-            lastParsedMessage = "Added ₹\(String(format: "%.2f", expense.amount)) to \(expense.category)"
-            isError = false
-        } else {
-            lastParsedMessage = "Could not parse amount from SMS"
-            isError = true
-        }
-        
-        // Clear message after 3 seconds
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-            lastParsedMessage = nil
+            withAnimation { lastParsedMessage = nil }
         }
         
         showingInput = false
+    }
+}
+
+// MARK: - Supporting Views
+
+struct StatItem: View {
+    let title: String
+    let value: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: 4) {
+            Text(value)
+                .font(.headline)
+                .foregroundStyle(color)
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -264,174 +380,153 @@ struct CategoryRow: View {
     }
     
     var body: some View {
-        HStack(spacing: 16) {
-            // Category color indicator
-            Circle()
-                .fill(AppTheme.colorForCategory(item.category))
-                .frame(width: 12, height: 12)
+        HStack(spacing: 12) {
+            // Category icon
+            Image(systemName: AppTheme.iconForCategory(item.category))
+                .font(.title2)
+                .foregroundStyle(AppTheme.colorForCategory(item.category))
+                .frame(width: 36)
             
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(item.category)
-                    .font(.headline)
-                    .foregroundColor(AppTheme.textPrimary)
+                    .font(.body)
                 
-                HStack(spacing: 8) {
-                    Text("\(item.count) txn\(item.count > 1 ? "s" : "")")
-                        .font(.caption)
-                        .foregroundColor(AppTheme.textMuted)
-                    
-                    Text("•")
-                        .foregroundColor(AppTheme.textMuted)
-                    
-                    Text("\(percentage, specifier: "%.1f")%")
-                        .font(.caption)
-                        .foregroundColor(AppTheme.textMuted)
-                }
+                Text("\(item.count) transaction\(item.count > 1 ? "s" : "") • \(percentage, specifier: "%.0f")%")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             
             Spacer()
             
-            HStack(spacing: 8) {
-                Text("₹\(item.total, specifier: "%.2f")")
-                    .font(.system(.title3, design: .rounded))
-                    .fontWeight(.semibold)
-                    .foregroundColor(AppTheme.textPrimary)
-                
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundColor(AppTheme.textMuted)
-            }
+            Text(item.total.currencyFormatted)
+                .font(.headline)
+                .monospacedDigit()
         }
-        .padding()
-        .background(AppTheme.cardBackground)
-        .cornerRadius(12)
+        .padding(.vertical, 4)
     }
 }
 
 struct SMSInputView: View {
-    let onSubmit: (String, String?) -> Void
+    let parser: SMSParser
+    let onSubmit: (Expense) -> Void
     let onCancel: () -> Void
     
     @State private var smsText: String = ""
     @State private var selectedCategory: String = "Auto Detect"
+    @State private var selectedDate: Date = Date()
+    @State private var parsedData: ParsedSMS?
+    @State private var parseError: Bool = false
+    @FocusState private var isTextEditorFocused: Bool
     
     private let categories = ["Auto Detect", "Banking", "Food", "Groceries", "Transport", "Shopping", "UPI", "Bills", "Entertainment", "Medical", "Other"]
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                AppTheme.background.ignoresSafeArea()
+        NavigationStack {
+            Form {
+                Section {
+                    TextEditor(text: $smsText)
+                        .frame(minHeight: 120)
+                        .focused($isTextEditorFocused)
+                        .onChange(of: smsText) { _, newValue in
+                            parseCurrentSMS()
+                        }
+                } header: {
+                    Text("SMS Content")
+                } footer: {
+                    if parseError && !smsText.isEmpty {
+                        Label("Could not detect amount from SMS", systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.orange)
+                    } else if let data = parsedData {
+                        Label("Detected: \(data.amount.currencyFormatted) from \(data.biller)", systemImage: "checkmark.circle")
+                            .foregroundStyle(.green)
+                    } else {
+                        Text("Paste a transaction SMS from your Messages app")
+                    }
+                }
                 
-                VStack(spacing: 20) {
-                    VStack(spacing: 8) {
-                        Image(systemName: "message.fill")
-                            .font(.system(size: 40))
-                            .foregroundColor(AppTheme.accent)
-                        
-                        Text("Paste SMS")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .foregroundColor(AppTheme.textPrimary)
-                        
-                        Text("Copy a transaction SMS from Messages and paste below")
-                            .font(.subheadline)
-                            .foregroundColor(AppTheme.textSecondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
+                if parsedData != nil {
+                    Section("Date") {
+                        DatePicker(
+                            "Transaction Date",
+                            selection: $selectedDate,
+                            displayedComponents: .date
+                        )
                     }
                     
-                    TextEditor(text: $smsText)
-                        .scrollContentBackground(.hidden)
-                        .foregroundColor(AppTheme.textPrimary)
-                        .frame(minHeight: 120)
-                        .padding(12)
-                        .background(AppTheme.cardBackground)
-                        .cornerRadius(12)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(AppTheme.cardBackgroundLight, lineWidth: 1)
-                        )
-                        .padding(.horizontal)
-                    
-                    // Category selector
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("CATEGORY")
-                            .font(.caption)
-                            .foregroundColor(AppTheme.textMuted)
-                            .padding(.horizontal)
-                        
-                        Menu {
+                    Section("Category") {
+                        Picker("Category", selection: $selectedCategory) {
                             ForEach(categories, id: \.self) { category in
-                                Button(action: { selectedCategory = category }) {
-                                    HStack {
-                                        if category != "Auto Detect" {
-                                            Circle()
-                                                .fill(AppTheme.colorForCategory(category))
-                                                .frame(width: 10, height: 10)
-                                        }
-                                        Text(category)
-                                        if selectedCategory == category {
-                                            Image(systemName: "checkmark")
-                                        }
-                                    }
-                                }
-                            }
-                        } label: {
-                            HStack {
-                                if selectedCategory == "Auto Detect" {
-                                    Image(systemName: "wand.and.stars")
-                                        .foregroundColor(AppTheme.accent)
-                                    Text("Auto Detect")
-                                        .foregroundColor(AppTheme.textPrimary)
+                                if category == "Auto Detect" {
+                                    Label("Auto Detect (\(parsedData?.category ?? "Other"))", systemImage: "wand.and.stars")
+                                        .tag(category)
                                 } else {
-                                    Circle()
-                                        .fill(AppTheme.colorForCategory(selectedCategory))
-                                        .frame(width: 12, height: 12)
-                                    Text(selectedCategory)
-                                        .foregroundColor(AppTheme.textPrimary)
+                                    Label(category, systemImage: AppTheme.iconForCategory(category))
+                                        .tag(category)
                                 }
-                                Spacer()
-                                Image(systemName: "chevron.down")
-                                    .foregroundColor(AppTheme.textMuted)
                             }
-                            .padding()
-                            .background(AppTheme.cardBackground)
-                            .cornerRadius(12)
-                            .padding(.horizontal)
+                        }
+                        .pickerStyle(.navigationLink)
+                    }
+                }
+                
+                Section {
+                    Button(action: submitExpense) {
+                        HStack {
+                            Spacer()
+                            Label("Add Expense", systemImage: "plus.circle.fill")
+                                .font(.headline)
+                            Spacer()
                         }
                     }
-                    
-                    Spacer()
-                    
-                    Button(action: {
-                        let category = selectedCategory == "Auto Detect" ? nil : selectedCategory
-                        onSubmit(smsText, category)
-                    }) {
-                        Text("Add Expense")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(AppTheme.accent)
-                            .cornerRadius(12)
-                    }
-                    .padding(.horizontal)
-                    .padding(.bottom)
+                    .disabled(parsedData == nil)
                 }
-                .padding(.top, 30)
             }
+            .navigationTitle("Add Expense")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(AppTheme.background, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", action: onCancel)
-                        .foregroundColor(AppTheme.accent)
                 }
+            }
+            .onAppear {
+                isTextEditorFocused = true
             }
         }
-        .preferredColorScheme(.dark)
+    }
+    
+    private func parseCurrentSMS() {
+        let trimmed = smsText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            parsedData = nil
+            parseError = false
+            return
+        }
+        
+        if let data = parser.parse(sms: trimmed) {
+            parsedData = data
+            parseError = false
+            selectedDate = data.date
+            selectedCategory = "Auto Detect"
+        } else {
+            parsedData = nil
+            parseError = true
+        }
+    }
+    
+    private func submitExpense() {
+        guard let data = parsedData else { return }
+        
+        let finalCategory = selectedCategory == "Auto Detect" ? data.category : selectedCategory
+        
+        let expense = Expense(
+            amount: data.amount,
+            category: finalCategory,
+            biller: data.biller,
+            rawSMS: data.rawSMS,
+            date: selectedDate
+        )
+        
+        onSubmit(expense)
     }
 }
 

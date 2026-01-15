@@ -1,63 +1,132 @@
 import SwiftUI
 
-// Netflix-inspired dark theme
+// Apple UI Kit - Native iOS Design System
+// Uses system colors that automatically adapt to light/dark mode
 struct AppTheme {
-    // Backgrounds
-    static let background = Color(hex: "141414")
-    static let cardBackground = Color(hex: "1F1F1F")
-    static let cardBackgroundLight = Color(hex: "2A2A2A")
+    // System-adaptive colors
+    static let background = Color(.systemBackground)
+    static let secondaryBackground = Color(.secondarySystemBackground)
+    static let tertiaryBackground = Color(.tertiarySystemBackground)
+    static let groupedBackground = Color(.systemGroupedBackground)
     
-    // Accent
-    static let accent = Color(hex: "E50914")
-    static let accentLight = Color(hex: "FF3D47")
+    // Text colors - automatically adapt
+    static let textPrimary = Color(.label)
+    static let textSecondary = Color(.secondaryLabel)
+    static let textTertiary = Color(.tertiaryLabel)
     
-    // Text
-    static let textPrimary = Color.white
-    static let textSecondary = Color(hex: "B3B3B3")
-    static let textMuted = Color(hex: "737373")
+    // Semantic colors
+    static let destructive = Color.red
+    static let success = Color.green
     
-    // Category colors (pastel dark variants)
+    // Separator
+    static let separator = Color(.separator)
+    
+    // Category colors - Vibrant iOS-style colors
     static let categoryColors: [String: Color] = [
-        "Banking": Color(hex: "4A90D9"),
-        "Food": Color(hex: "E87D3E"),
-        "Transport": Color(hex: "50C878"),
-        "Shopping": Color(hex: "9B59B6"),
-        "Groceries": Color(hex: "27AE60"),
-        "UPI": Color(hex: "E84393"),
-        "Bills": Color(hex: "F39C12"),
-        "Entertainment": Color(hex: "1ABC9C"),
-        "Medical": Color(hex: "E74C3C"),
-        "Other": Color(hex: "7F8C8D")
+        "Banking": .blue,
+        "Food": .orange,
+        "Transport": .green,
+        "Shopping": .purple,
+        "Groceries": .mint,
+        "UPI": .pink,
+        "Bills": .yellow,
+        "Entertainment": .cyan,
+        "Medical": .red,
+        "Other": .gray
     ]
     
     static func colorForCategory(_ category: String) -> Color {
-        categoryColors[category] ?? Color(hex: "7F8C8D")
+        categoryColors[category] ?? .gray
     }
-}
-
-extension Color {
-    init(hex: String) {
-        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&int)
-        let a, r, g, b: UInt64
-        switch hex.count {
-        case 3: // RGB (12-bit)
-            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
-        case 6: // RGB (24-bit)
-            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
-        case 8: // ARGB (32-bit)
-            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
-        default:
-            (a, r, g, b) = (1, 1, 1, 0)
+    
+    // SF Symbol for category
+    static func iconForCategory(_ category: String) -> String {
+        switch category {
+        case "Banking": return "building.columns.fill"
+        case "Food": return "fork.knife"
+        case "Transport": return "car.fill"
+        case "Shopping": return "bag.fill"
+        case "Groceries": return "cart.fill"
+        case "UPI": return "indianrupeesign.circle.fill"
+        case "Bills": return "doc.text.fill"
+        case "Entertainment": return "tv.fill"
+        case "Medical": return "cross.case.fill"
+        default: return "ellipsis.circle.fill"
         }
-        self.init(
-            .sRGB,
-            red: Double(r) / 255,
-            green: Double(g) / 255,
-            blue: Double(b) / 255,
-            opacity: Double(a) / 255
-        )
     }
 }
 
+// MARK: - Accent Color Options
+enum AccentColorOption: String, CaseIterable, Identifiable {
+    case blue = "Blue"
+    case purple = "Purple"
+    case pink = "Pink"
+    case red = "Red"
+    case orange = "Orange"
+    case yellow = "Yellow"
+    case green = "Green"
+    case mint = "Mint"
+    case teal = "Teal"
+    case cyan = "Cyan"
+    case indigo = "Indigo"
+    
+    var id: String { rawValue }
+    
+    var color: Color {
+        switch self {
+        case .blue: return .blue
+        case .purple: return .purple
+        case .pink: return .pink
+        case .red: return .red
+        case .orange: return .orange
+        case .yellow: return .yellow
+        case .green: return .green
+        case .mint: return .mint
+        case .teal: return .teal
+        case .cyan: return .cyan
+        case .indigo: return .indigo
+        }
+    }
+    
+    var icon: String {
+        "circle.fill"
+    }
+}
+
+// MARK: - Theme Settings
+class ThemeSettings: ObservableObject {
+    static let shared = ThemeSettings()
+    
+    @AppStorage("accentColor") var accentColorRaw: String = AccentColorOption.blue.rawValue
+    @AppStorage("isDarkMode") var isDarkMode: Bool = false
+    
+    var accentColor: AccentColorOption {
+        get { AccentColorOption(rawValue: accentColorRaw) ?? .blue }
+        set { accentColorRaw = newValue.rawValue }
+    }
+    
+    var colorScheme: ColorScheme? {
+        isDarkMode ? .dark : nil  // nil means follow system
+    }
+}
+
+// MARK: - Currency Formatter
+extension Double {
+    var currencyFormatted: String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencySymbol = "₹"
+        formatter.maximumFractionDigits = 0
+        return formatter.string(from: NSNumber(value: self)) ?? "₹0"
+    }
+    
+    var compactFormatted: String {
+        if self >= 100000 {
+            return String(format: "₹%.1fL", self / 100000)
+        } else if self >= 1000 {
+            return String(format: "₹%.1fK", self / 1000)
+        } else {
+            return String(format: "₹%.0f", self)
+        }
+    }
+}

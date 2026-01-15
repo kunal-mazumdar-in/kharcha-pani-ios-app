@@ -23,92 +23,47 @@ struct BillersView: View {
     }
     
     var body: some View {
-        ZStack {
-            AppTheme.background.ignoresSafeArea()
-            
-            VStack(spacing: 0) {
-                // Search bar
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(AppTheme.textMuted)
-                    TextField("Search billers or categories", text: $searchText)
-                        .foregroundColor(AppTheme.textPrimary)
-                }
-                .padding(12)
-                .background(AppTheme.cardBackground)
-                .cornerRadius(10)
-                .padding()
-                
-                // Stats bar
-                HStack {
-                    Label("\(mappingStorage.mappings.count) billers", systemImage: "building.2")
-                    Spacer()
-                    Label("\(Set(mappingStorage.mappings.values).count) categories", systemImage: "folder")
-                }
-                .font(.caption)
-                .foregroundColor(AppTheme.textMuted)
-                .padding(.horizontal)
-                .padding(.bottom, 8)
-                
-                // Mappings list
-                ScrollView {
-                    LazyVStack(spacing: 12) {
-                        ForEach(groupedMappings.keys.sorted(), id: \.self) { category in
-                            VStack(alignment: .leading, spacing: 8) {
-                                // Category header
-                                HStack {
-                                    Circle()
-                                        .fill(AppTheme.colorForCategory(category))
-                                        .frame(width: 10, height: 10)
-                                    Text(category)
-                                        .font(.subheadline)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(AppTheme.textSecondary)
-                                    
-                                    Spacer()
-                                    
-                                    Text("\(groupedMappings[category]?.count ?? 0)")
-                                        .font(.caption)
-                                        .foregroundColor(AppTheme.textMuted)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 2)
-                                        .background(AppTheme.cardBackgroundLight)
-                                        .cornerRadius(10)
-                                }
-                                .padding(.horizontal)
-                                
-                                // Billers in this category
-                                ForEach(groupedMappings[category] ?? [], id: \.key) { mapping in
-                                    BillerRow(
-                                        biller: mapping.key,
-                                        category: mapping.value,
-                                        onEdit: {
-                                            editingMapping = (mapping.key, mapping.value)
-                                        },
-                                        onDelete: {
-                                            mappingStorage.deleteMapping(biller: mapping.key)
-                                            onMappingsChanged()
-                                        }
-                                    )
-                                }
+        List {
+            ForEach(groupedMappings.keys.sorted(), id: \.self) { category in
+                Section {
+                    ForEach(groupedMappings[category] ?? [], id: \.key) { mapping in
+                        HStack {
+                            Text(mapping.key)
+                                .font(.system(.body, design: .monospaced))
+                            
+                            Spacer()
+                            
+                            Button {
+                                editingMapping = (mapping.key, mapping.value)
+                            } label: {
+                                Image(systemName: "pencil.circle.fill")
+                                    .foregroundStyle(.secondary)
                             }
-                            .padding(.bottom, 8)
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                mappingStorage.deleteMapping(biller: mapping.key)
+                                onMappingsChanged()
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
                         }
                     }
-                    .padding(.horizontal)
+                } header: {
+                    Label(category, systemImage: AppTheme.iconForCategory(category))
+                        .foregroundStyle(AppTheme.colorForCategory(category))
                 }
             }
         }
+        .listStyle(.insetGrouped)
+        .searchable(text: $searchText, prompt: "Search billers")
         .navigationTitle("Billers")
-        .navigationBarTitleDisplayMode(.large)
-        .toolbarBackground(AppTheme.background, for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
-        .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: { showingAddSheet = true }) {
-                    Image(systemName: "plus.circle.fill")
-                        .foregroundColor(AppTheme.accent)
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showingAddSheet = true
+                } label: {
+                    Image(systemName: "plus")
                 }
             }
         }
@@ -129,6 +84,15 @@ struct BillersView: View {
                 onSave: onMappingsChanged
             )
         }
+        .overlay {
+            if mappingStorage.mappings.isEmpty {
+                ContentUnavailableView(
+                    "No Billers",
+                    systemImage: "building.2",
+                    description: Text("Add billers to automatically categorize your expenses")
+                )
+            }
+        }
     }
 }
 
@@ -136,38 +100,6 @@ struct EditableBillerItem: Identifiable {
     let id = UUID()
     let biller: String
     let category: String
-}
-
-struct BillerRow: View {
-    let biller: String
-    let category: String
-    let onEdit: () -> Void
-    let onDelete: () -> Void
-    
-    var body: some View {
-        HStack {
-            Text(biller)
-                .font(.system(.body, design: .monospaced))
-                .foregroundColor(AppTheme.textPrimary)
-            
-            Spacer()
-            
-            Button(action: onEdit) {
-                Image(systemName: "pencil.circle.fill")
-                    .font(.title3)
-                    .foregroundColor(AppTheme.textSecondary)
-            }
-            
-            Button(action: onDelete) {
-                Image(systemName: "trash.circle.fill")
-                    .font(.title3)
-                    .foregroundColor(AppTheme.accent.opacity(0.7))
-            }
-        }
-        .padding()
-        .background(AppTheme.cardBackground)
-        .cornerRadius(10)
-    }
 }
 
 struct BillerEditView: View {
@@ -183,7 +115,7 @@ struct BillerEditView: View {
     let onSave: () -> Void
     
     @State private var biller: String = ""
-    @State private var category: String = ""
+    @State private var category: String = "Other"
     
     private let categories = ["Banking", "Food", "Groceries", "Transport", "Shopping", "UPI", "Bills", "Entertainment", "Medical", "Other"]
     
@@ -198,106 +130,39 @@ struct BillerEditView: View {
     }
     
     var body: some View {
-        NavigationView {
-            ZStack {
-                AppTheme.background.ignoresSafeArea()
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Biller Code", text: $biller)
+                        .textInputAutocapitalization(.characters)
+                        .autocorrectionDisabled()
+                } header: {
+                    Text("Biller")
+                } footer: {
+                    Text("Enter the biller code as it appears in SMS (e.g., HDFCBK, SWIGGY)")
+                }
                 
-                VStack(spacing: 24) {
-                    // Header icon
-                    ZStack {
-                        Circle()
-                            .fill(AppTheme.accent.opacity(0.2))
-                            .frame(width: 70, height: 70)
-                        Image(systemName: isEditing ? "pencil" : "plus")
-                            .font(.title)
-                            .foregroundColor(AppTheme.accent)
-                    }
-                    .padding(.top, 20)
-                    
-                    // Biller input
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("BILLER CODE")
-                            .font(.caption)
-                            .foregroundColor(AppTheme.textMuted)
-                        
-                        TextField("e.g. HDFCBK, SWIGGY", text: $biller)
-                            .textInputAutocapitalization(.characters)
-                            .foregroundColor(AppTheme.textPrimary)
-                            .padding()
-                            .background(AppTheme.cardBackground)
-                            .cornerRadius(10)
-                    }
-                    .padding(.horizontal)
-                    
-                    // Category picker
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("CATEGORY")
-                            .font(.caption)
-                            .foregroundColor(AppTheme.textMuted)
-                        
-                        Menu {
-                            ForEach(categories, id: \.self) { cat in
-                                Button(action: { category = cat }) {
-                                    HStack {
-                                        Text(cat)
-                                        if category == cat {
-                                            Image(systemName: "checkmark")
-                                        }
-                                    }
-                                }
-                            }
-                        } label: {
-                            HStack {
-                                if category.isEmpty {
-                                    Text("Select category")
-                                        .foregroundColor(AppTheme.textMuted)
-                                } else {
-                                    Circle()
-                                        .fill(AppTheme.colorForCategory(category))
-                                        .frame(width: 12, height: 12)
-                                    Text(category)
-                                        .foregroundColor(AppTheme.textPrimary)
-                                }
-                                Spacer()
-                                Image(systemName: "chevron.down")
-                                    .foregroundColor(AppTheme.textMuted)
-                            }
-                            .padding()
-                            .background(AppTheme.cardBackground)
-                            .cornerRadius(10)
+                Section("Category") {
+                    Picker("Category", selection: $category) {
+                        ForEach(categories, id: \.self) { cat in
+                            Label(cat, systemImage: AppTheme.iconForCategory(cat))
+                                .tag(cat)
                         }
                     }
-                    .padding(.horizontal)
-                    
-                    Spacer()
-                    
-                    // Save button
-                    Button(action: save) {
-                        Text(isEditing ? "Update Biller" : "Add Biller")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(
-                                (biller.isEmpty || category.isEmpty) 
-                                    ? AppTheme.textMuted 
-                                    : AppTheme.accent
-                            )
-                            .cornerRadius(12)
-                    }
-                    .disabled(biller.isEmpty || category.isEmpty)
-                    .padding()
+                    .pickerStyle(.navigationLink)
                 }
             }
             .navigationTitle(isEditing ? "Edit Biller" : "Add Biller")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(AppTheme.background, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
-                        .foregroundColor(AppTheme.accent)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        save()
+                    }
+                    .disabled(biller.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
             .onAppear {
@@ -307,14 +172,16 @@ struct BillerEditView: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
     }
     
     private func save() {
+        let trimmedBiller = biller.trimmingCharacters(in: .whitespaces)
+        guard !trimmedBiller.isEmpty else { return }
+        
         if let original = originalBiller {
-            mappingStorage.updateMapping(oldBiller: original, newBiller: biller, category: category)
+            mappingStorage.updateMapping(oldBiller: original, newBiller: trimmedBiller, category: category)
         } else {
-            mappingStorage.addMapping(biller: biller, category: category)
+            mappingStorage.addMapping(biller: trimmedBiller, category: category)
         }
         onSave()
         dismiss()

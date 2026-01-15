@@ -14,13 +14,13 @@ struct PieChartView: View {
     let grandTotal: Double
     
     private var slices: [PieSlice] {
-        var currentAngle: Double = -90 // Start from top
+        var currentAngle: Double = -90
         
         return categoryTotals.map { item in
             let percentage = grandTotal > 0 ? item.total / grandTotal : 0
             let angle = percentage * 360
             
-            var slice = PieSlice(
+            let slice = PieSlice(
                 category: item.category,
                 value: item.total,
                 color: AppTheme.colorForCategory(item.category),
@@ -35,36 +35,25 @@ struct PieChartView: View {
     
     var body: some View {
         ZStack {
-            // Pie slices
+            // Pie slices with small gaps
             ForEach(slices) { slice in
-                PieSliceShape(startAngle: slice.startAngle, endAngle: slice.endAngle)
-                    .fill(slice.color)
+                PieSliceShape(startAngle: slice.startAngle + 1, endAngle: slice.endAngle - 1)
+                    .fill(slice.color.gradient)
             }
             
             // Center hole (donut style)
             Circle()
-                .fill(AppTheme.background)
+                .fill(Color(.systemBackground))
                 .frame(width: 100, height: 100)
             
-            // Center text
+            // Center content
             VStack(spacing: 2) {
-                Text("₹")
+                Text(grandTotal.compactFormatted)
+                    .font(.system(.title2, design: .rounded, weight: .bold))
+                Text("Total")
                     .font(.caption)
-                    .foregroundColor(AppTheme.textMuted)
-                Text(formatAmount(grandTotal))
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
-                    .foregroundColor(AppTheme.textPrimary)
+                    .foregroundStyle(.secondary)
             }
-        }
-    }
-    
-    private func formatAmount(_ amount: Double) -> String {
-        if amount >= 100000 {
-            return String(format: "%.1fL", amount / 100000)
-        } else if amount >= 1000 {
-            return String(format: "%.1fK", amount / 1000)
-        } else {
-            return String(format: "%.0f", amount)
         }
     }
 }
@@ -93,17 +82,14 @@ struct PieSliceShape: Shape {
 }
 
 #Preview {
-    ZStack {
-        AppTheme.background.ignoresSafeArea()
-        PieChartView(
-            categoryTotals: [
-                CategoryTotal(category: "Food", total: 5000, count: 10),
-                CategoryTotal(category: "Transport", total: 3000, count: 5),
-                CategoryTotal(category: "Shopping", total: 8000, count: 3)
-            ],
-            grandTotal: 16000
-        )
-        .frame(width: 200, height: 200)
-    }
+    PieChartView(
+        categoryTotals: [
+            CategoryTotal(category: "Food", total: 5000, count: 10),
+            CategoryTotal(category: "Transport", total: 3000, count: 5),
+            CategoryTotal(category: "Shopping", total: 8000, count: 3)
+        ],
+        grandTotal: 16000
+    )
+    .frame(width: 200, height: 200)
+    .padding()
 }
-
