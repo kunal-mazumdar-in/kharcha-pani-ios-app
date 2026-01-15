@@ -98,7 +98,7 @@ class ThemeSettings: ObservableObject {
     static let shared = ThemeSettings()
     
     @AppStorage("accentColor") var accentColorRaw: String = AccentColorOption.blue.rawValue
-    @AppStorage("isDarkMode") var isDarkMode: Bool = false
+    @AppStorage("isDarkMode") var isDarkMode: Bool = true
     
     var accentColor: AccentColorOption {
         get { AccentColorOption(rawValue: accentColorRaw) ?? .blue }

@@ -142,13 +142,13 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             List {
-                // Pending SMS Banner
+                // Pending Expenses Banner
                 if pendingCount > 0 {
                     Section {
                         Button(action: { showingQueue = true }) {
                             Label {
                                 HStack {
-                                    Text("\(pendingCount) SMS\(pendingCount > 1 ? "s" : "") pending")
+                                    Text("\(pendingCount) expense\(pendingCount > 1 ? "s" : "") pending")
                                     Spacer()
                                     Text("Review")
                                         .foregroundStyle(.secondary)
@@ -161,50 +161,47 @@ struct ContentView: View {
                     }
                 }
                 
-                // Date Filter Section
+                // Summary Section with Date Filter
                 Section {
-                    Menu {
-                        ForEach(filterOptions, id: \.self) { filter in
-                            Button {
-                                withAnimation {
-                                    selectedFilter = filter
-                                }
-                            } label: {
-                                HStack {
-                                    if filter == .allTime {
-                                        Label(filter.displayName, systemImage: "calendar.badge.clock")
-                                    } else {
-                                        Label(filter.displayName, systemImage: "calendar")
-                                    }
-                                    
-                                    if selectedFilter == filter {
-                                        Image(systemName: "checkmark")
-                                    }
-                                }
-                            }
-                        }
-                    } label: {
+                    VStack(spacing: 12) {
+                        // Date filter row at top
                         HStack {
-                            Label {
-                                Text(selectedFilter.displayName)
-                                    .fontWeight(.medium)
-                            } icon: {
-                                Image(systemName: selectedFilter == .allTime ? "calendar.badge.clock" : "calendar")
-                                    .foregroundStyle(tintColor)
-                            }
+                            // Selected date label
+                            Text(selectedFilter.displayName)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundStyle(.secondary)
                             
                             Spacer()
                             
-                            Image(systemName: "chevron.up.chevron.down")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                            // Date picker menu
+                            Menu {
+                                ForEach(filterOptions, id: \.self) { filter in
+                                    Button {
+                                        withAnimation {
+                                            selectedFilter = filter
+                                        }
+                                    } label: {
+                                        HStack {
+                                            if filter == .allTime {
+                                                Label(filter.displayName, systemImage: "calendar.badge.clock")
+                                            } else {
+                                                Label(filter.displayName, systemImage: "calendar")
+                                            }
+                                            
+                                            if selectedFilter == filter {
+                                                Image(systemName: "checkmark")
+                                            }
+                                        }
+                                    }
+                                }
+                            } label: {
+                                Image(systemName: selectedFilter == .allTime ? "calendar.badge.clock" : "calendar")
+                                    .font(.title3)
+                                    .foregroundStyle(tintColor)
+                            }
                         }
-                    }
-                }
-                
-                // Summary Section
-                Section {
-                    VStack(spacing: 16) {
+                        
                         if categoryTotals.isEmpty {
                             // Empty state
                             VStack(spacing: 12) {
@@ -218,14 +215,14 @@ struct ContentView: View {
                                     .font(.caption)
                                     .foregroundStyle(.tertiary)
                             }
-                            .frame(height: 180)
+                            .frame(height: 160)
                             .frame(maxWidth: .infinity)
                         } else {
                             PieChartView(
                                 categoryTotals: categoryTotals,
                                 grandTotal: grandTotal
                             )
-                            .frame(height: 180)
+                            .frame(height: 160)
                         }
                         
                         // Stats row
@@ -242,7 +239,7 @@ struct ContentView: View {
                             StatItem(
                                 title: "Transactions",
                                 value: "\(filteredExpenses.count)",
-                                color: .secondary
+                                color: tintColor
                             )
                             
                             Divider()
@@ -251,11 +248,11 @@ struct ContentView: View {
                             StatItem(
                                 title: "Categories",
                                 value: "\(categoryTotals.count)",
-                                color: .secondary
+                                color: tintColor
                             )
                         }
                     }
-                    .listRowInsets(EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16))
+                    .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
                 }
                 
                 // Categories Section
@@ -282,13 +279,17 @@ struct ContentView: View {
                 }
             }
             .listStyle(.insetGrouped)
-            .navigationTitle("Kharcha")
+            .navigationBarTitleDisplayMode(.inline)
             .tint(tintColor)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: { showingAdmin = true }) {
                         Image(systemName: "gearshape")
                     }
+                }
+                ToolbarItem(placement: .principal) {
+                    Text("Kharcha")
+                        .font(.headline)
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { showingInput = true }) {

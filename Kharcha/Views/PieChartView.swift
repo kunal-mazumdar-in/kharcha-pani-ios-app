@@ -13,6 +13,8 @@ struct PieChartView: View {
     let categoryTotals: [CategoryTotal]
     let grandTotal: Double
     
+    @State private var selectedSlice: PieSlice?
+    
     private var slices: [PieSlice] {
         var currentAngle: Double = -90
         
@@ -35,25 +37,68 @@ struct PieChartView: View {
     
     var body: some View {
         ZStack {
+            // Tap outside area to dismiss tooltip
+            Color.clear
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        selectedSlice = nil
+                    }
+                }
+            
             // Pie slices with small gaps
             ForEach(slices) { slice in
                 PieSliceShape(startAngle: slice.startAngle + 1, endAngle: slice.endAngle - 1)
                     .fill(slice.color.gradient)
+                    .opacity(selectedSlice == nil || selectedSlice?.category == slice.category ? 1.0 : 0.5)
+                    .scaleEffect(selectedSlice?.category == slice.category ? 1.05 : 1.0)
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            if selectedSlice?.category == slice.category {
+                                selectedSlice = nil
+                            } else {
+                                selectedSlice = slice
+                            }
+                        }
+                    }
             }
             
             // Center hole (donut style)
             Circle()
                 .fill(Color(.systemBackground))
                 .frame(width: 100, height: 100)
+                .onTapGesture {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        selectedSlice = nil
+                    }
+                }
             
-            // Center content
+            // Center content - show selected or total
             VStack(spacing: 2) {
-                Text(grandTotal.compactFormatted)
-                    .font(.system(.title2, design: .rounded, weight: .bold))
-                Text("Total")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if let selected = selectedSlice {
+                    let percentage = grandTotal > 0 ? (selected.value / grandTotal * 100) : 0
+                    
+                    Text(selected.value.compactFormatted)
+                        .font(.system(.title3, design: .rounded, weight: .bold))
+                        .foregroundStyle(selected.color)
+                    
+                    Text(selected.category)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundStyle(selected.color)
+                    
+                    Text(String(format: "%.1f%%", percentage))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text(grandTotal.compactFormatted)
+                        .font(.system(.title2, design: .rounded, weight: .bold))
+                    Text("Total")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
+            .animation(.easeInOut(duration: 0.2), value: selectedSlice?.category)
         }
     }
 }

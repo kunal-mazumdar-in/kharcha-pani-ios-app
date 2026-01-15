@@ -11,55 +11,8 @@ struct DataManagementView: View {
         themeSettings.accentColor.color
     }
     
-    private var totalAmount: Double {
-        expenseStorage.expenses.reduce(0) { $0 + $1.amount }
-    }
-    
-    private var uniqueCategories: Int {
-        Set(expenseStorage.expenses.map { $0.category }).count
-    }
-    
     var body: some View {
         List {
-            // Statistics Section
-            Section("Statistics") {
-                LabeledContent {
-                    Text("\(expenseStorage.expenses.count)")
-                        .monospacedDigit()
-                } label: {
-                    Label {
-                        Text("Total Expenses")
-                    } icon: {
-                        Image(systemName: "doc.text.fill")
-                            .foregroundStyle(tintColor)
-                    }
-                }
-                
-                LabeledContent {
-                    Text(totalAmount.currencyFormatted)
-                        .monospacedDigit()
-                } label: {
-                    Label {
-                        Text("Total Amount")
-                    } icon: {
-                        Image(systemName: "indianrupeesign.circle.fill")
-                            .foregroundStyle(tintColor)
-                    }
-                }
-                
-                LabeledContent {
-                    Text("\(uniqueCategories)")
-                        .monospacedDigit()
-                } label: {
-                    Label {
-                        Text("Categories")
-                    } icon: {
-                        Image(systemName: "folder.fill")
-                            .foregroundStyle(tintColor)
-                    }
-                }
-            }
-            
             // Danger Zone
             Section {
                 Button(role: .destructive) {
