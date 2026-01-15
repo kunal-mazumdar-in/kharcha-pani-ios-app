@@ -1,9 +1,10 @@
 import SwiftUI
+import SwiftData
 
 struct HomeView: View {
-    @ObservedObject var expenseStorage: ExpenseStorage
-    @ObservedObject var mappingStorage: MappingStorage
-    @ObservedObject var budgetStorage: BudgetStorage
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \Expense.date, order: .reverse) private var expenses: [Expense]
+    @Query private var budgets: [Budget]
     @EnvironmentObject var themeSettings: ThemeSettings
     
     @State private var showingInput = false
@@ -12,22 +13,22 @@ struct HomeView: View {
     @State private var selectedFilter: DateFilter = DateFilter.currentMonth()
     
     private var parser: SMSParser {
-        SMSParser(mappingStorage: mappingStorage)
+        SMSParser(mappingStorage: MappingStorage.shared)
     }
     
     private var tintColor: Color {
         themeSettings.accentColor.color
     }
     
-    // Header gradient colors
+    // Header gradient colors - matching splash screen #2196F3 blue
     private static let headerGradient = LinearGradient(
         colors: [
-            Color(red: 0/255, green: 111/255, blue: 161/255),
-            Color(red: 0/255, green: 188/255, blue: 212/255),
-            Color(red: 0/255, green: 150/255, blue: 136/255)
+            Color(red: 13/255, green: 71/255, blue: 161/255),   // Blue 900
+            Color(red: 21/255, green: 101/255, blue: 192/255),  // Blue 800
+            Color(red: 33/255, green: 150/255, blue: 243/255),  // #2196F3
         ],
-        startPoint: .leading,
-        endPoint: .trailing
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
     )
     
     // Get all unique months from expenses
@@ -36,7 +37,7 @@ struct HomeView: View {
         var monthSet = Set<String>()
         var months: [DateFilter] = []
         
-        for expense in expenseStorage.expenses {
+        for expense in expenses {
             let year = calendar.component(.year, from: expense.date)
             let month = calendar.component(.month, from: expense.date)
             let key = "\(year)-\(month)"
@@ -83,7 +84,7 @@ struct HomeView: View {
     
     // Filtered expenses based on selected filter
     private var filteredExpenses: [Expense] {
-        expenseStorage.expenses.filter { selectedFilter.matches(date: $0.date) }
+        expenses.filter { selectedFilter.matches(date: $0.date) }
     }
     
     private var categoryTotals: [CategoryTotal] {
@@ -101,11 +102,17 @@ struct HomeView: View {
         filteredExpenses.reduce(0) { $0 + $1.amount }
     }
     
+    // Helper to get budget for a category
+    private func getBudget(for category: String) -> Double? {
+        let budget = budgets.first { $0.category == category }?.amount
+        return budget != nil && budget! > 0 ? budget : nil
+    }
+    
     var body: some View {
         NavigationStack {
             List {
-                    // Summary Section with Date Filter
-                    Section {
+                // Summary Section with Date Filter
+                Section {
                     VStack(spacing: 12) {
                         // Date filter row at top
                         HStack {
@@ -204,13 +211,12 @@ struct HomeView: View {
                         ForEach(categoryTotals) { item in
                             NavigationLink(destination: CategoryDetailView(
                                 category: item.category,
-                                expenseStorage: expenseStorage,
                                 dateFilter: selectedFilter
                             )) {
                                 CategoryRow(
                                     item: item,
                                     grandTotal: grandTotal,
-                                    budgetStorage: budgetStorage,
+                                    budget: getBudget(for: item.category),
                                     showBudgetIndicator: selectedFilter != .allTime
                                 )
                             }
@@ -248,7 +254,7 @@ struct HomeView: View {
                 ToolbarItem(placement: .principal) {
                     Text("Expense Ginie")
                         .font(.headline)
-                        .foregroundColor(Color(.secondarySystemGroupedBackground))
+                        .foregroundColor(.white)
                         .fontWeight(.semibold)
                 }
             }
@@ -281,7 +287,9 @@ struct HomeView: View {
     }
     
     private func addExpense(_ expense: Expense) {
-        expenseStorage.append(expense: expense)
+        modelContext.insert(expense)
+        try? modelContext.save()
+        
         lastParsedMessage = "Added \(expense.amount.currencyFormatted) to \(expense.category)"
         isError = false
         
@@ -294,11 +302,6 @@ struct HomeView: View {
 }
 
 #Preview {
-    HomeView(
-        expenseStorage: ExpenseStorage(),
-        mappingStorage: MappingStorage.shared,
-        budgetStorage: BudgetStorage.shared
-    )
-    .environmentObject(ThemeSettings.shared)
+    HomeView()
+        .environmentObject(ThemeSettings.shared)
 }
-

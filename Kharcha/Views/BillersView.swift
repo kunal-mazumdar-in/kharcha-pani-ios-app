@@ -1,40 +1,43 @@
 import SwiftUI
+import SwiftData
 
 struct BillersView: View {
-    @ObservedObject var mappingStorage: MappingStorage
+    @Query(sort: \BillerMapping.category) private var billerMappings: [BillerMapping]
+    @Environment(\.modelContext) private var modelContext
     
     @State private var showingAddSheet = false
-    @State private var editingMapping: (biller: String, category: String)?
+    @State private var editingMapping: BillerMapping?
     @State private var searchText = ""
     
     let onMappingsChanged: () -> Void
     
-    private var sortedMappings: [(key: String, value: String)] {
-        let filtered = mappingStorage.mappings.filter { mapping in
-            searchText.isEmpty || 
-            mapping.key.localizedCaseInsensitiveContains(searchText) ||
-            mapping.value.localizedCaseInsensitiveContains(searchText)
+    private var filteredMappings: [BillerMapping] {
+        if searchText.isEmpty {
+            return billerMappings
         }
-        return filtered.sorted { $0.value < $1.value }
+        return billerMappings.filter { mapping in
+            mapping.biller.localizedCaseInsensitiveContains(searchText) ||
+            mapping.category.localizedCaseInsensitiveContains(searchText)
+        }
     }
     
-    private var groupedMappings: [String: [(key: String, value: String)]] {
-        Dictionary(grouping: sortedMappings) { $0.value }
+    private var groupedMappings: [String: [BillerMapping]] {
+        Dictionary(grouping: filteredMappings) { $0.category }
     }
     
     var body: some View {
         List {
             ForEach(groupedMappings.keys.sorted(), id: \.self) { category in
                 Section {
-                    ForEach(groupedMappings[category] ?? [], id: \.key) { mapping in
+                    ForEach(groupedMappings[category] ?? []) { mapping in
                         HStack {
-                            Text(mapping.key)
+                            Text(mapping.biller)
                                 .font(.system(.body, design: .monospaced))
                             
                             Spacer()
                             
                             Button {
-                                editingMapping = (mapping.key, mapping.value)
+                                editingMapping = mapping
                             } label: {
                                 Image(systemName: "pencil.circle.fill")
                                     .foregroundStyle(.secondary)
@@ -42,8 +45,7 @@ struct BillersView: View {
                         }
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button(role: .destructive) {
-                                mappingStorage.deleteMapping(biller: mapping.key)
-                                onMappingsChanged()
+                                deleteMapping(mapping)
                             } label: {
                                 Label("Delete", systemImage: "trash")
                             }
@@ -70,23 +72,24 @@ struct BillersView: View {
         }
         .sheet(isPresented: $showingAddSheet) {
             BillerEditView(
-                mappingStorage: mappingStorage,
                 mode: .add,
-                onSave: onMappingsChanged
+                onSave: {
+                    onMappingsChanged()
+                    MappingStorage.shared.refreshMappings()
+                }
             )
         }
-        .sheet(item: Binding(
-            get: { editingMapping.map { EditableBillerItem(biller: $0.biller, category: $0.category) } },
-            set: { editingMapping = $0.map { ($0.biller, $0.category) } }
-        )) { item in
+        .sheet(item: $editingMapping) { mapping in
             BillerEditView(
-                mappingStorage: mappingStorage,
-                mode: .edit(biller: item.biller, category: item.category),
-                onSave: onMappingsChanged
+                mode: .edit(mapping: mapping),
+                onSave: {
+                    onMappingsChanged()
+                    MappingStorage.shared.refreshMappings()
+                }
             )
         }
         .overlay {
-            if mappingStorage.mappings.isEmpty {
+            if billerMappings.isEmpty {
                 ContentUnavailableView(
                     "No Billers",
                     systemImage: "building.2",
@@ -95,21 +98,22 @@ struct BillersView: View {
             }
         }
     }
-}
-
-struct EditableBillerItem: Identifiable {
-    let id = UUID()
-    let biller: String
-    let category: String
+    
+    private func deleteMapping(_ mapping: BillerMapping) {
+        modelContext.delete(mapping)
+        try? modelContext.save()
+        onMappingsChanged()
+        MappingStorage.shared.refreshMappings()
+    }
 }
 
 struct BillerEditView: View {
-    @ObservedObject var mappingStorage: MappingStorage
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) var dismiss
     
     enum Mode {
         case add
-        case edit(biller: String, category: String)
+        case edit(mapping: BillerMapping)
     }
     
     let mode: Mode
@@ -125,8 +129,8 @@ struct BillerEditView: View {
         return false
     }
     
-    private var originalBiller: String? {
-        if case .edit(let biller, _) = mode { return biller }
+    private var editingMapping: BillerMapping? {
+        if case .edit(let mapping) = mode { return mapping }
         return nil
     }
     
@@ -167,23 +171,35 @@ struct BillerEditView: View {
                 }
             }
             .onAppear {
-                if case .edit(let b, let c) = mode {
-                    biller = b
-                    category = c
+                if case .edit(let mapping) = mode {
+                    biller = mapping.biller
+                    category = mapping.category
                 }
             }
         }
     }
     
     private func save() {
-        let trimmedBiller = biller.trimmingCharacters(in: .whitespaces)
+        let trimmedBiller = biller.trimmingCharacters(in: .whitespaces).uppercased()
         guard !trimmedBiller.isEmpty else { return }
         
-        if let original = originalBiller {
-            mappingStorage.updateMapping(oldBiller: original, newBiller: trimmedBiller, category: category)
+        if let mapping = editingMapping {
+            // Update existing
+            if mapping.biller != trimmedBiller {
+                // Biller name changed - delete old, create new (unique constraint)
+                modelContext.delete(mapping)
+                let newMapping = BillerMapping(biller: trimmedBiller, category: category)
+                modelContext.insert(newMapping)
+            } else {
+                mapping.category = category
+            }
         } else {
-            mappingStorage.addMapping(biller: trimmedBiller, category: category)
+            // Add new
+            let newMapping = BillerMapping(biller: trimmedBiller, category: category)
+            modelContext.insert(newMapping)
         }
+        
+        try? modelContext.save()
         onSave()
         dismiss()
     }
@@ -191,6 +207,6 @@ struct BillerEditView: View {
 
 #Preview {
     NavigationStack {
-        BillersView(mappingStorage: MappingStorage.shared, onMappingsChanged: {})
+        BillersView(onMappingsChanged: {})
     }
 }

@@ -8,6 +8,7 @@ struct ParsedSMS {
     let rawSMS: String
 }
 
+@MainActor
 class SMSParser {
     private let mappingStorage: MappingStorage
     

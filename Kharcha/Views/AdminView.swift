@@ -1,9 +1,9 @@
 import SwiftUI
+import SwiftData
 
 // MARK: - Admin Content View (for Tab)
 struct AdminContentView: View {
-    @ObservedObject var mappingStorage: MappingStorage
-    @ObservedObject var expenseStorage: ExpenseStorage
+    @Query private var billerMappings: [BillerMapping]
     @EnvironmentObject var themeSettings: ThemeSettings
     
     let onMappingsChanged: () -> Void
@@ -33,31 +33,17 @@ struct AdminContentView: View {
                             .frame(width: 24, height: 24)
                     }
                 }
-                
-                // Dark Mode Toggle
-                Toggle(isOn: $themeSettings.isDarkMode) {
-                    Label {
-                        Text("Dark Mode")
-                    } icon: {
-                        Image(systemName: "moon.fill")
-                            .foregroundStyle(tintColor)
-                    }
-                }
-                .tint(tintColor)
             }
             
             // Configuration Section
             Section("Configuration") {
                 NavigationLink {
-                    BillersView(
-                        mappingStorage: mappingStorage,
-                        onMappingsChanged: onMappingsChanged
-                    )
+                    BillersView(onMappingsChanged: onMappingsChanged)
                 } label: {
                     Label {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Billers")
-                            Text("\(mappingStorage.mappings.count) configured")
+                            Text("\(billerMappings.count) configured")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -71,7 +57,7 @@ struct AdminContentView: View {
             // Data Section
             Section("Data") {
                 NavigationLink {
-                    DataManagementView(expenseStorage: expenseStorage)
+                    DataManagementView()
                 } label: {
                     Label {
                         VStack(alignment: .leading, spacing: 2) {
@@ -112,132 +98,6 @@ struct AdminContentView: View {
         .scrollIndicators(.hidden)
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
-// MARK: - Legacy Admin View (for sheet presentation if needed)
-struct AdminView: View {
-    @ObservedObject var mappingStorage: MappingStorage
-    @ObservedObject var expenseStorage: ExpenseStorage
-    @StateObject var themeSettings = ThemeSettings.shared
-    @Environment(\.dismiss) var dismiss
-    
-    let onMappingsChanged: () -> Void
-    
-    private var tintColor: Color {
-        themeSettings.accentColor.color
-    }
-    
-    var body: some View {
-        NavigationStack {
-            List {
-                // Theme Section
-                Section("Theme") {
-                    // Accent Color Picker
-                    NavigationLink {
-                        AccentColorPickerView(themeSettings: themeSettings)
-                    } label: {
-                        HStack {
-                            Label {
-                                Text("Accent Color")
-                            } icon: {
-                                Image(systemName: "paintpalette.fill")
-                                    .foregroundStyle(tintColor)
-                            }
-                            Spacer()
-                            Circle()
-                                .fill(tintColor)
-                                .frame(width: 24, height: 24)
-                        }
-                    }
-                    
-                    // Dark Mode Toggle
-                    Toggle(isOn: $themeSettings.isDarkMode) {
-                        Label {
-                            Text("Dark Mode")
-                        } icon: {
-                            Image(systemName: "moon.fill")
-                                .foregroundStyle(tintColor)
-                        }
-                    }
-                    .tint(tintColor)
-                }
-                
-                // Configuration Section
-                Section("Configuration") {
-                    NavigationLink {
-                        BillersView(
-                            mappingStorage: mappingStorage,
-                            onMappingsChanged: onMappingsChanged
-                        )
-                    } label: {
-                        Label {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Billers")
-                                Text("\(mappingStorage.mappings.count) configured")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        } icon: {
-                            Image(systemName: "building.2.fill")
-                                .foregroundStyle(tintColor)
-                        }
-                    }
-                }
-                
-                // Data Section
-                Section("Data") {
-                    NavigationLink {
-                        DataManagementView(expenseStorage: expenseStorage)
-                    } label: {
-                        Label {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Data")
-                                Text("Export, clear data")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        } icon: {
-                            Image(systemName: "externaldrive.fill")
-                                .foregroundStyle(tintColor)
-                        }
-                    }
-                }
-                
-                // About Section
-                Section("About") {
-                    LabeledContent("Version", value: "1.0.0")
-                    
-                    LabeledContent("Developer", value: "Kharcha Team")
-                }
-                
-                // App Info
-                Section {
-                    VStack(spacing: 8) {
-                        Text("Expense Ginie")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                        
-                        Text("Track your expenses effortlessly")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .listRowBackground(Color.clear)
-                }
-            }
-            .listStyle(.insetGrouped)
-            .scrollIndicators(.hidden)
-            .navigationTitle("Settings")
-            .tint(tintColor)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
-        }
-        .tint(tintColor)
     }
 }
 
@@ -296,9 +156,8 @@ struct AccentColorPickerView: View {
 }
 
 #Preview {
-    AdminView(
-        mappingStorage: MappingStorage.shared,
-        expenseStorage: ExpenseStorage(),
-        onMappingsChanged: {}
-    )
+    NavigationStack {
+        AdminContentView(onMappingsChanged: {})
+            .environmentObject(ThemeSettings.shared)
+    }
 }

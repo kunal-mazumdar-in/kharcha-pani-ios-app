@@ -1,7 +1,9 @@
 import SwiftUI
+import SwiftData
 
 struct BudgetView: View {
-    @ObservedObject var budgetStorage: BudgetStorage
+    @Environment(\.modelContext) private var modelContext
+    @Query private var budgets: [Budget]
     @EnvironmentObject var themeSettings: ThemeSettings
     
     private let categories = ["Banking", "Food", "Groceries", "Transport", "Shopping", "UPI", "Bills", "Entertainment", "Medical", "Other"]
@@ -12,7 +14,10 @@ struct BudgetView: View {
                 ForEach(categories, id: \.self) { category in
                     BudgetRow(
                         category: category,
-                        budgetStorage: budgetStorage
+                        currentBudget: getBudget(for: category),
+                        onBudgetChange: { amount in
+                            setBudget(for: category, amount: amount)
+                        }
                     )
                 }
             } header: {
@@ -27,12 +32,31 @@ struct BudgetView: View {
         .navigationTitle("Budget")
         .navigationBarTitleDisplayMode(.inline)
     }
+    
+    private func getBudget(for category: String) -> Double {
+        budgets.first { $0.category == category }?.amount ?? 0
+    }
+    
+    private func setBudget(for category: String, amount: Double) {
+        if let existing = budgets.first(where: { $0.category == category }) {
+            if amount > 0 {
+                existing.amount = amount
+            } else {
+                modelContext.delete(existing)
+            }
+        } else if amount > 0 {
+            let budget = Budget(category: category, amount: amount)
+            modelContext.insert(budget)
+        }
+        try? modelContext.save()
+    }
 }
 
 // MARK: - Budget Row
 struct BudgetRow: View {
     let category: String
-    let budgetStorage: BudgetStorage
+    let currentBudget: Double
+    let onBudgetChange: (Double) -> Void
     
     @State private var budgetText: String = ""
     @FocusState private var isFocused: Bool
@@ -68,7 +92,6 @@ struct BudgetRow: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .onAppear {
-            let currentBudget = budgetStorage.getBudget(for: category) ?? 0
             budgetText = currentBudget > 0 ? String(Int(currentBudget)) : ""
         }
         .onChange(of: isFocused) { _, focused in
@@ -76,7 +99,7 @@ struct BudgetRow: View {
                 // Save when focus is lost
                 let filtered = budgetText.filter { $0.isNumber }
                 let amount = Double(filtered) ?? 0
-                budgetStorage.setBudget(for: category, amount: amount)
+                onBudgetChange(amount)
             }
         }
     }
@@ -84,16 +107,14 @@ struct BudgetRow: View {
 
 // MARK: - Budget Tab Wrapper
 struct BudgetTabView: View {
-    @ObservedObject var budgetStorage: BudgetStorage
-    
     var body: some View {
         NavigationStack {
-            BudgetView(budgetStorage: budgetStorage)
+            BudgetView()
         }
     }
 }
 
 #Preview {
-    BudgetView(budgetStorage: BudgetStorage.shared)
+    BudgetView()
         .environmentObject(ThemeSettings.shared)
 }

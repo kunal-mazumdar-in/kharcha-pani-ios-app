@@ -1,121 +1,104 @@
 import Foundation
+import SwiftData
+import SwiftUI
 
+/// Service for accessing biller mappings from SwiftData
+/// Used by SMSParser and views that need programmatic access
+@MainActor
 class MappingStorage: ObservableObject {
     static let shared = MappingStorage()
     
+    private var modelContext: ModelContext?
+    
+    /// Dictionary cache for quick lookups (rebuilt on changes)
     @Published var mappings: [String: String] = [:]
     
-    private let fileName = "sender_mapping.json"  // Keep filename for backward compatibility
-    private let mappingVersion = 2  // Increment this to force refresh from bundle
+    private init() {}
     
-    private var fileURL: URL {
-        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        return documentsPath.appendingPathComponent(fileName)
+    /// Setup with model context - call from app startup
+    func configure(with container: ModelContainer) {
+        self.modelContext = container.mainContext
+        refreshMappings()
     }
     
-    private var versionURL: URL {
-        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        return documentsPath.appendingPathComponent("mapping_version.txt")
-    }
-    
-    init() {
-        loadMappings()
-    }
-    
-    func loadMappings() {
-        let savedVersion = (try? String(contentsOf: versionURL, encoding: .utf8)).flatMap { Int($0) } ?? 0
+    /// Refresh the mappings dictionary from SwiftData
+    func refreshMappings() {
+        guard let context = modelContext else { return }
         
-        // If version changed, reload from bundle and merge
-        if savedVersion < mappingVersion {
-            loadFromBundleAndMerge()
-            return
-        }
-        
-        // Load from Documents if exists
-        if FileManager.default.fileExists(atPath: fileURL.path) {
-            do {
-                let data = try Data(contentsOf: fileURL)
-                let loaded = try JSONDecoder().decode([String: String].self, from: data)
-                // Normalize all keys to uppercase
-                mappings = Dictionary(uniqueKeysWithValues: loaded.map { ($0.key.uppercased(), $0.value) })
-                return
-            } catch {
-                print("Error loading mappings from Documents: \(error)")
-            }
-        }
-        
-        loadFromBundleAndMerge()
-    }
-    
-    private func loadFromBundleAndMerge() {
-        // Load existing user mappings first
-        var existingMappings: [String: String] = [:]
-        if FileManager.default.fileExists(atPath: fileURL.path),
-           let data = try? Data(contentsOf: fileURL),
-           let loaded = try? JSONDecoder().decode([String: String].self, from: data) {
-            existingMappings = Dictionary(uniqueKeysWithValues: loaded.map { ($0.key.uppercased(), $0.value) })
-        }
-        
-        // Load bundle mappings
-        if let bundleURL = Bundle.main.url(forResource: "sender_mapping", withExtension: "json"),
-           let data = try? Data(contentsOf: bundleURL),
-           let bundleMappings = try? JSONDecoder().decode([String: String].self, from: data) {
-            // Normalize bundle keys to uppercase
-            let normalizedBundle = Dictionary(uniqueKeysWithValues: bundleMappings.map { ($0.key.uppercased(), $0.value) })
-            // Merge: bundle values as base, user values override
-            mappings = normalizedBundle.merging(existingMappings) { _, user in user }
-        } else {
-            mappings = existingMappings.isEmpty ? defaultMappings() : existingMappings
-        }
-        
-        saveMappings()
-        saveVersion()
-    }
-    
-    func saveMappings() {
         do {
-            let data = try JSONEncoder().encode(mappings)
-            try data.write(to: fileURL)
+            let descriptor = FetchDescriptor<BillerMapping>(sortBy: [SortDescriptor(\.biller)])
+            let billerMappings = try context.fetch(descriptor)
+            mappings = Dictionary(uniqueKeysWithValues: billerMappings.map { ($0.biller, $0.category) })
         } catch {
-            print("Error saving mappings: \(error)")
+            print("Error fetching mappings: \(error)")
         }
     }
     
-    private func saveVersion() {
-        try? String(mappingVersion).write(to: versionURL, atomically: true, encoding: .utf8)
-    }
-    
+    /// Add a new biller mapping
     func addMapping(biller: String, category: String) {
-        mappings[biller.uppercased()] = category
-        saveMappings()
-    }
-    
-    func deleteMapping(biller: String) {
-        mappings.removeValue(forKey: biller.uppercased())
-        saveMappings()
-    }
-    
-    func updateMapping(oldBiller: String, newBiller: String, category: String) {
-        if oldBiller.uppercased() != newBiller.uppercased() {
-            mappings.removeValue(forKey: oldBiller.uppercased())
+        guard let context = modelContext else { return }
+        
+        let mapping = BillerMapping(biller: biller, category: category)
+        context.insert(mapping)
+        
+        do {
+            try context.save()
+            refreshMappings()
+        } catch {
+            print("Error adding mapping: \(error)")
         }
-        mappings[newBiller.uppercased()] = category
-        saveMappings()
     }
     
-    private func defaultMappings() -> [String: String] {
-        [
-            "HDFC BANK": "Banking",
-            "HDFC": "Banking",
-            "SBI": "Banking",
-            "ICICI": "Banking",
-            "SWIGGY": "Food",
-            "ZOMATO": "Food",
-            "UBER": "Transport",
-            "AMAZON": "Shopping",
-            "PHONEPE": "UPI",
-            "PAYTM": "UPI",
-            "APPLE": "Entertainment"
-        ]
+    /// Delete a biller mapping
+    func deleteMapping(biller: String) {
+        guard let context = modelContext else { return }
+        
+        do {
+            let upperBiller = biller.uppercased()
+            let descriptor = FetchDescriptor<BillerMapping>(
+                predicate: #Predicate { $0.biller == upperBiller }
+            )
+            
+            if let mapping = try context.fetch(descriptor).first {
+                context.delete(mapping)
+                try context.save()
+                refreshMappings()
+            }
+        } catch {
+            print("Error deleting mapping: \(error)")
+        }
+    }
+    
+    /// Update an existing mapping
+    func updateMapping(oldBiller: String, newBiller: String, category: String) {
+        guard let context = modelContext else { return }
+        
+        do {
+            let upperOldBiller = oldBiller.uppercased()
+            let descriptor = FetchDescriptor<BillerMapping>(
+                predicate: #Predicate { $0.biller == upperOldBiller }
+            )
+            
+            if let mapping = try context.fetch(descriptor).first {
+                // If biller name changed, delete old and create new (due to unique constraint)
+                if oldBiller.uppercased() != newBiller.uppercased() {
+                    context.delete(mapping)
+                    let newMapping = BillerMapping(biller: newBiller, category: category)
+                    context.insert(newMapping)
+                } else {
+                    mapping.category = category
+                }
+                
+                try context.save()
+                refreshMappings()
+            }
+        } catch {
+            print("Error updating mapping: \(error)")
+        }
+    }
+    
+    /// Get category for a biller (case-insensitive)
+    func getCategory(for biller: String) -> String? {
+        mappings[biller.uppercased()]
     }
 }

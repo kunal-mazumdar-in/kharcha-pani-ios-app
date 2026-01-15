@@ -1,7 +1,9 @@
 import SwiftUI
+import SwiftData
 
 struct DataManagementView: View {
-    @ObservedObject var expenseStorage: ExpenseStorage
+    @Environment(\.modelContext) private var modelContext
+    @Query private var expenses: [Expense]
     @StateObject private var themeSettings = ThemeSettings.shared
     
     @State private var showingClearConfirmation = false
@@ -36,7 +38,7 @@ struct DataManagementView: View {
                 clearAllExpenses()
             }
         } message: {
-            Text("This will permanently delete all \(expenseStorage.expenses.count) expense records.")
+            Text("This will permanently delete all \(expenses.count) expense records.")
         }
         .overlay {
             if showingClearedMessage {
@@ -54,7 +56,12 @@ struct DataManagementView: View {
     }
     
     private func clearAllExpenses() {
-        expenseStorage.clear()
+        do {
+            try modelContext.delete(model: Expense.self)
+            try modelContext.save()
+        } catch {
+            print("Error clearing expenses: \(error)")
+        }
         
         withAnimation {
             showingClearedMessage = true
@@ -70,6 +77,6 @@ struct DataManagementView: View {
 
 #Preview {
     NavigationStack {
-        DataManagementView(expenseStorage: ExpenseStorage())
+        DataManagementView()
     }
 }

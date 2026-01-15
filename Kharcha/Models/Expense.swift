@@ -1,17 +1,14 @@
 import Foundation
+import SwiftData
 
-struct Expense: Codable, Identifiable {
-    let id: UUID
-    let amount: Double
-    let category: String
-    let biller: String
-    let rawSMS: String
-    let date: Date
-    
-    // Support old data with "sender" key
-    enum CodingKeys: String, CodingKey {
-        case id, amount, category, biller = "sender", rawSMS, date
-    }
+@Model
+final class Expense {
+    var id: UUID
+    var amount: Double
+    var category: String
+    var biller: String
+    var rawSMS: String
+    var date: Date
     
     init(amount: Double, category: String, biller: String, rawSMS: String, date: Date = Date()) {
         self.id = UUID()
@@ -23,6 +20,7 @@ struct Expense: Codable, Identifiable {
     }
 }
 
+// Computed helper for category aggregation (not stored)
 struct CategoryTotal: Identifiable {
     let id = UUID()
     let category: String

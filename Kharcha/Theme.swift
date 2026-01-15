@@ -97,8 +97,13 @@ enum AccentColorOption: String, CaseIterable, Identifiable {
 class ThemeSettings: ObservableObject {
     static let shared = ThemeSettings()
     
-    @AppStorage("accentColor") var accentColorRaw: String = AccentColorOption.blue.rawValue
-    @AppStorage("isDarkMode") var isDarkMode: Bool = true
+    @AppStorage("accentColor") var accentColorRaw: String = AccentColorOption.blue.rawValue {
+        didSet { objectWillChange.send() }
+    }
+    
+    @AppStorage("isDarkMode") var isDarkMode: Bool = true {
+        didSet { objectWillChange.send() }
+    }
     
     var accentColor: AccentColorOption {
         get { AccentColorOption(rawValue: accentColorRaw) ?? .blue }

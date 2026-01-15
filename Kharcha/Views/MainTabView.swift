@@ -1,9 +1,9 @@
 import SwiftUI
+import SwiftData
 
 struct MainTabView: View {
-    @StateObject private var expenseStorage = ExpenseStorage()
-    @StateObject private var mappingStorage = MappingStorage.shared
-    @StateObject private var budgetStorage = BudgetStorage.shared
+    @Environment(\.modelContext) private var modelContext
+    @Query private var expenses: [Expense]
     @EnvironmentObject var themeSettings: ThemeSettings
     
     @State private var selectedTab = 0
@@ -11,54 +11,36 @@ struct MainTabView: View {
     
     private let queueStorage = SharedQueueStorage.shared
     
-    private var parser: SMSParser {
-        SMSParser(mappingStorage: mappingStorage)
-    }
-    
     var body: some View {
         TabView(selection: $selectedTab) {
             // Home Tab
-            HomeView(
-                expenseStorage: expenseStorage,
-                mappingStorage: mappingStorage,
-                budgetStorage: budgetStorage
-            )
-            .tabItem {
-                Label("Home", systemImage: "house.fill")
-            }
-            .tag(0)
+            HomeView()
+                .tabItem {
+                    Label("Home", systemImage: "house.fill")
+                }
+                .tag(0)
             
             // Review Tab
-            ReviewTabView(
-                expenseStorage: expenseStorage,
-                mappingStorage: mappingStorage,
-                onAppear: refreshPendingCount
-            )
-            .tabItem {
-                Label("Review", systemImage: "tray.full.fill")
-            }
-            .tag(1)
-            .badge(pendingCount > 0 ? pendingCount : 0)
+            ReviewTabView(onAppear: refreshPendingCount)
+                .tabItem {
+                    Label("Review", systemImage: "tray.full.fill")
+                }
+                .tag(1)
+                .badge(pendingCount > 0 ? pendingCount : 0)
             
             // Budget Tab
-            BudgetTabView(budgetStorage: budgetStorage)
-            .tabItem {
-                Label("Budget", systemImage: "chart.bar.fill")
-            }
-            .tag(2)
+            BudgetTabView()
+                .tabItem {
+                    Label("Budget", systemImage: "chart.bar.fill")
+                }
+                .tag(2)
             
             // Settings Tab
-            SettingsTabView(
-                mappingStorage: mappingStorage,
-                expenseStorage: expenseStorage,
-                onMappingsChanged: {
-                    expenseStorage.recategorizeAll(using: parser)
+            SettingsTabView(onMappingsChanged: recategorizeAllExpenses)
+                .tabItem {
+                    Label("Settings", systemImage: "gearshape.fill")
                 }
-            )
-            .tabItem {
-                Label("Settings", systemImage: "gearshape.fill")
-            }
-            .tag(3)
+                .tag(3)
         }
         .onAppear {
             refreshPendingCount()
@@ -89,40 +71,39 @@ struct MainTabView: View {
     private func refreshPendingCount() {
         pendingCount = queueStorage.pendingCount()
     }
+    
+    private func recategorizeAllExpenses() {
+        let parser = SMSParser(mappingStorage: MappingStorage.shared)
+        for expense in expenses {
+            let (biller, category) = parser.detectBillerAndCategory(in: expense.rawSMS)
+            expense.biller = biller
+            expense.category = category
+        }
+        try? modelContext.save()
+    }
 }
 
 // MARK: - Review Tab Wrapper
 struct ReviewTabView: View {
-    @ObservedObject var expenseStorage: ExpenseStorage
-    @ObservedObject var mappingStorage: MappingStorage
     let onAppear: () -> Void
     
     var body: some View {
         NavigationStack {
-            ReviewContentView(
-                expenseStorage: expenseStorage,
-                mappingStorage: mappingStorage
-            )
-            .onAppear {
-                onAppear()
-            }
+            ReviewContentView()
+                .onAppear {
+                    onAppear()
+                }
         }
     }
 }
 
 // MARK: - Settings Tab Wrapper
 struct SettingsTabView: View {
-    @ObservedObject var mappingStorage: MappingStorage
-    @ObservedObject var expenseStorage: ExpenseStorage
     let onMappingsChanged: () -> Void
     
     var body: some View {
         NavigationStack {
-            AdminContentView(
-                mappingStorage: mappingStorage,
-                expenseStorage: expenseStorage,
-                onMappingsChanged: onMappingsChanged
-            )
+            AdminContentView(onMappingsChanged: onMappingsChanged)
         }
     }
 }
@@ -132,4 +113,3 @@ struct SettingsTabView: View {
     MainTabView()
         .environmentObject(ThemeSettings.shared)
 }
-

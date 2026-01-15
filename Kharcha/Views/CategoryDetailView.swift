@@ -1,24 +1,35 @@
 import SwiftUI
+import SwiftData
 
 struct CategoryDetailView: View {
     let category: String
-    @ObservedObject var expenseStorage: ExpenseStorage
     var dateFilter: DateFilter = .allTime
     
+    @Environment(\.modelContext) private var modelContext
+    @Query private var allExpenses: [Expense]
     @Environment(\.dismiss) var dismiss
+    
     @State private var showingDeleteConfirmation = false
     @State private var expenseToDelete: Expense?
     
     private let categories = ["Banking", "Food", "Groceries", "Transport", "Shopping", "UPI", "Bills", "Entertainment", "Medical", "Other"]
     
-    private var expenses: [Expense] {
-        expenseStorage.expenses.filter { 
-            $0.category == category && dateFilter.matches(date: $0.date)
-        }
+    init(category: String, dateFilter: DateFilter = .allTime) {
+        self.category = category
+        self.dateFilter = dateFilter
+        
+        // Filter by category in query
+        let categoryFilter = category
+        _allExpenses = Query(
+            filter: #Predicate<Expense> { $0.category == categoryFilter },
+            sort: \Expense.date,
+            order: .reverse
+        )
     }
     
-    private var sortedExpenses: [Expense] {
-        expenses.sorted { $0.date > $1.date }
+    // Apply date filter on top of category filter
+    private var expenses: [Expense] {
+        allExpenses.filter { dateFilter.matches(date: $0.date) }
     }
     
     private var total: Double {
@@ -69,13 +80,14 @@ struct CategoryDetailView: View {
                 }
             } else {
                 Section("Transactions") {
-                    ForEach(sortedExpenses) { expense in
+                    ForEach(expenses) { expense in
                         ExpenseRow(
                             expense: expense,
                             categories: categories,
                             onCategoryChange: { newCategory in
                                 withAnimation {
-                                    expenseStorage.updateCategory(for: expense, to: newCategory)
+                                    expense.category = newCategory
+                                    try? modelContext.save()
                                 }
                                 if expenses.isEmpty {
                                     dismiss()
@@ -105,7 +117,8 @@ struct CategoryDetailView: View {
             Button("Delete", role: .destructive) {
                 if let expense = expenseToDelete {
                     withAnimation {
-                        expenseStorage.delete(expense: expense)
+                        modelContext.delete(expense)
+                        try? modelContext.save()
                     }
                     expenseToDelete = nil
                     
@@ -188,9 +201,6 @@ struct ExpenseRow: View {
 
 #Preview {
     NavigationStack {
-        CategoryDetailView(
-            category: "Food",
-            expenseStorage: ExpenseStorage()
-        )
+        CategoryDetailView(category: "Food")
     }
 }
