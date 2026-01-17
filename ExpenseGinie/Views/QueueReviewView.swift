@@ -49,6 +49,7 @@ struct ReviewContentView: View {
                                     } label: {
                                         Label("Delete", systemImage: "trash")
                                     }
+                                    .tint(.red)
                                 }
                             }
                         }
@@ -71,6 +72,7 @@ struct ReviewContentView: View {
                                     } label: {
                                         Label("Delete", systemImage: "trash")
                                     }
+                                    .tint(.red)
                                 }
                             }
                         }
@@ -93,6 +95,7 @@ struct ReviewContentView: View {
                                     } label: {
                                         Label("Delete", systemImage: "trash")
                                     }
+                                    .tint(.red)
                                 }
                             }
                         }

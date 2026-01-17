@@ -17,10 +17,11 @@ struct DataManagementView: View {
         List {
             // Danger Zone
             Section {
-                Button(role: .destructive) {
+                Button {
                     showingClearConfirmation = true
                 } label: {
                     Label("Clear All Expenses", systemImage: "trash.fill")
+                        .foregroundStyle(.red)
                 }
             } header: {
                 Text("Danger Zone")
@@ -31,7 +32,6 @@ struct DataManagementView: View {
         .listStyle(.insetGrouped)
         .scrollIndicators(.hidden)
         .navigationTitle("Data")
-        .tint(tintColor)
         .alert("Clear All Expenses?", isPresented: $showingClearConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("Clear All", role: .destructive) {

@@ -49,6 +49,7 @@ struct BillersView: View {
                             } label: {
                                 Label("Delete", systemImage: "trash")
                             }
+                            .tint(.red)
                         }
                     }
                 } header: {

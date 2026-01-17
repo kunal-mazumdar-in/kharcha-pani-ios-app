@@ -121,7 +121,7 @@ struct AppTheme {
     }
 }
 
-// MARK: - Accent Color Options
+// MARK: - Accent Color Options (Pastel Variants)
 enum AccentColorOption: String, CaseIterable, Identifiable {
     case blue = "Blue"
     case purple = "Purple"
@@ -139,17 +139,18 @@ enum AccentColorOption: String, CaseIterable, Identifiable {
     
     var color: Color {
         switch self {
-        case .blue: return .blue
-        case .purple: return .purple
-        case .pink: return .pink
-        case .red: return .red
-        case .orange: return .orange
-        case .yellow: return .yellow
-        case .green: return .green
-        case .mint: return .mint
-        case .teal: return .teal
-        case .cyan: return .cyan
-        case .indigo: return .indigo
+        // Pastel versions of each color family
+        case .blue: return Color(red: 0.64, green: 0.82, blue: 1.0)         // Pastel Blue #A2D2FF
+        case .purple: return Color(red: 0.76, green: 0.69, blue: 0.88)      // Pastel Purple #C3B1E1
+        case .pink: return Color(red: 1.0, green: 0.71, blue: 0.76)         // Pastel Pink #FFB6C1
+        case .red: return Color(red: 1.0, green: 0.71, blue: 0.64)          // Pastel Coral #FFB4A2
+        case .orange: return Color(red: 1.0, green: 0.85, blue: 0.73)       // Pastel Peach #FFD9BA
+        case .yellow: return Color(red: 1.0, green: 0.96, blue: 0.73)       // Pastel Yellow #FFF5BA
+        case .green: return Color(red: 0.60, green: 0.85, blue: 0.67)       // Pastel Green #98D8AA
+        case .mint: return Color(red: 0.71, green: 0.92, blue: 0.84)        // Pastel Mint #B5EAD7
+        case .teal: return Color(red: 0.60, green: 0.88, blue: 0.85)        // Pastel Teal #99E1D9
+        case .cyan: return Color(red: 0.64, green: 0.89, blue: 0.95)        // Pastel Cyan #A3E4F1
+        case .indigo: return Color(red: 0.80, green: 0.80, blue: 0.98)      // Pastel Indigo #CCCCFA
         }
     }
     

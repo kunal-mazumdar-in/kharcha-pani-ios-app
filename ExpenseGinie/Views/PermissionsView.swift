@@ -165,25 +165,6 @@ struct PermissionsView: View {
                 }
             }
             
-            // Siri Phrases Section
-            Section {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Supported Siri Commands")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        SiriPhraseRow(phrase: "Track Food expense in Expense Ginie")
-                        SiriPhraseRow(phrase: "Track Shopping in Expense Ginie")
-                        SiriPhraseRow(phrase: "Track my Transport expense in Expense Ginie")
-                    }
-                }
-                .padding(.vertical, 8)
-            } header: {
-                Text("Siri Commands")
-            } footer: {
-                Text("Replace the category name with: Banking, Food, Groceries, Transport, Shopping, UPI, Bills, Entertainment, Medical, or Other.")
-            }
         }
         .listStyle(.insetGrouped)
         .scrollIndicators(.hidden)
@@ -271,32 +252,6 @@ struct PermissionRow: View {
             }
         }
         .padding(.vertical, 4)
-    }
-}
-
-// MARK: - Siri Phrase Row
-struct SiriPhraseRow: View {
-    let phrase: String
-    
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "quote.opening")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            
-            Text(phrase)
-                .font(.callout)
-                .foregroundStyle(.primary)
-                .italic()
-            
-            Image(systemName: "quote.closing")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(Color(.tertiarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }
 

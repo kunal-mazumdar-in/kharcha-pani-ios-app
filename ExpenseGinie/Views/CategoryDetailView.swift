@@ -101,6 +101,7 @@ struct CategoryDetailView: View {
                             } label: {
                                 Label("Delete", systemImage: "trash")
                             }
+                            .tint(.red)
                         }
                     }
                 }
