@@ -11,6 +11,7 @@ struct HomeView: View {
     
     @State private var showingInput = false
     @State private var showingPDFImport = false
+    @State private var showingBillScanner = false
     @State private var selectedStatementType: StatementType = .bank
     @State private var pendingPDFCount = 0
     @State private var lastParsedMessage: String?
@@ -272,6 +273,11 @@ struct HomeView: View {
                     pendingPDFCount = count
                 }
             }
+            .sheet(isPresented: $showingBillScanner) {
+                BillScannerView(parser: parser) { expense in
+                    addExpense(expense)
+                }
+            }
             .onChange(of: showingPDFImport) { _, isShowing in
                 // Show toast and switch to Review tab after sheet is fully dismissed
                 if !isShowing && pendingPDFCount > 0 {
@@ -311,6 +317,12 @@ struct HomeView: View {
                     }
                     
                     Divider()
+                    
+                    Button {
+                        showingBillScanner = true
+                    } label: {
+                        Label("Scan Bill", systemImage: "doc.text.viewfinder")
+                    }
                     
                     Button {
                         showingInput = true

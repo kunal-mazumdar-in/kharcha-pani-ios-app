@@ -276,19 +276,6 @@ struct SMSInputView: View {
                 } header: {
                     Text("Date")
                 }
-                
-                // Submit Button
-                Section {
-                    Button(action: submitExpense) {
-                        HStack {
-                            Spacer()
-                            Label("Add Expense", systemImage: "plus.circle.fill")
-                                .font(.headline)
-                            Spacer()
-                        }
-                    }
-                    .disabled(!canSubmit)
-                }
             }
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Add Expense")
@@ -296,6 +283,14 @@ struct SMSInputView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", action: onCancel)
+                }
+                
+                ToolbarItem(placement: .primaryAction) {
+                    Button(action: submitExpense) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.title2)
+                    }
+                    .disabled(!canSubmit)
                 }
             }
             .onAppear {
