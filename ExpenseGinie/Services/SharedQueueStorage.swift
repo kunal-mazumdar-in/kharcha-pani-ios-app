@@ -58,7 +58,20 @@ class SharedQueueStorage {
         }
     }
     
-    /// Pre-parsed expense from Bank Statement PDF
+    /// Statement source type for categorization in review screen
+    enum StatementSource: String, Codable {
+        case bank = "bank"
+        case creditCard = "creditCard"
+        
+        var displayName: String {
+            switch self {
+            case .bank: return "From Bank Statement"
+            case .creditCard: return "From Credit Card Statement"
+            }
+        }
+    }
+    
+    /// Pre-parsed expense from Bank/Credit Card Statement PDF
     struct PendingBankStatementExpense: Codable, Identifiable {
         let id: UUID
         var amount: Double
@@ -68,8 +81,9 @@ class SharedQueueStorage {
         let dateAdded: Date
         let parsedWithAI: Bool
         var detectedCurrency: DetectedCurrency
+        let statementSource: StatementSource
         
-        init(amount: Double, category: String, description: String, date: Date, parsedWithAI: Bool = false, currency: DetectedCurrency = .inr) {
+        init(amount: Double, category: String, description: String, date: Date, parsedWithAI: Bool = false, currency: DetectedCurrency = .inr, source: StatementSource = .bank) {
             self.id = UUID()
             self.amount = amount
             self.category = category
@@ -78,9 +92,10 @@ class SharedQueueStorage {
             self.dateAdded = Date()
             self.parsedWithAI = parsedWithAI
             self.detectedCurrency = currency
+            self.statementSource = source
         }
         
-        // Custom decoder to handle missing detectedCurrency field (backward compatibility)
+        // Custom decoder to handle missing fields (backward compatibility)
         init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             id = try container.decode(UUID.self, forKey: .id)
@@ -91,10 +106,11 @@ class SharedQueueStorage {
             dateAdded = try container.decode(Date.self, forKey: .dateAdded)
             parsedWithAI = try container.decodeIfPresent(Bool.self, forKey: .parsedWithAI) ?? false
             detectedCurrency = try container.decodeIfPresent(DetectedCurrency.self, forKey: .detectedCurrency) ?? .inr
+            statementSource = try container.decodeIfPresent(StatementSource.self, forKey: .statementSource) ?? .bank
         }
         
         private enum CodingKeys: String, CodingKey {
-            case id, amount, category, description, date, dateAdded, parsedWithAI, detectedCurrency
+            case id, amount, category, description, date, dateAdded, parsedWithAI, detectedCurrency, statementSource
         }
     }
     
@@ -263,14 +279,14 @@ class SharedQueueStorage {
     // MARK: - Bank Statement Queue Methods
     
     /// Add expense from Bank Statement (pre-parsed)
-    func addFromBankStatement(amount: Double, category: String, description: String, date: Date) {
+    func addFromBankStatement(amount: Double, category: String, description: String, date: Date, source: StatementSource = .bank) {
         var queue = loadBankStatementQueue()
-        queue.append(PendingBankStatementExpense(amount: amount, category: category, description: description, date: date))
+        queue.append(PendingBankStatementExpense(amount: amount, category: category, description: description, date: date, source: source))
         saveBankStatementQueue(queue)
     }
     
-    /// Add multiple expenses from Bank Statement
-    func addMultipleFromBankStatement(_ expenses: [(amount: Double, category: String, description: String, date: Date, currency: DetectedCurrency)], parsedWithAI: Bool = false) {
+    /// Add multiple expenses from Bank/Credit Card Statement
+    func addMultipleFromBankStatement(_ expenses: [(amount: Double, category: String, description: String, date: Date, currency: DetectedCurrency)], parsedWithAI: Bool = false, source: StatementSource = .bank) {
         var queue = loadBankStatementQueue()
         for expense in expenses {
             queue.append(PendingBankStatementExpense(
@@ -279,7 +295,8 @@ class SharedQueueStorage {
                 description: expense.description,
                 date: expense.date,
                 parsedWithAI: parsedWithAI,
-                currency: expense.currency
+                currency: expense.currency,
+                source: source
             ))
         }
         saveBankStatementQueue(queue)

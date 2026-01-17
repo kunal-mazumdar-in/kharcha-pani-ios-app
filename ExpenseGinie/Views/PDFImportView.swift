@@ -197,8 +197,8 @@ struct PDFImportView: View {
                     await MainActor.run {
                         switch result {
                         case .success(let transactions, let parsedWithAI):
-                            // Add ALL transactions directly to queue with AI flag
-                            parserService.addTransactionsToQueue(transactions, parsedWithAI: parsedWithAI)
+                            // Add ALL transactions directly to queue with AI flag and statement type
+                            parserService.addTransactionsToQueue(transactions, parsedWithAI: parsedWithAI, statementType: statementType)
                             let count = transactions.count
                             
                             // Notify parent FIRST, then dismiss

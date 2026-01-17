@@ -636,8 +636,11 @@ class PDFParserService: ObservableObject {
 
 // MARK: - Add to Queue Extension
 extension PDFParserService {
-    func addTransactionsToQueue(_ transactions: [ParsedTransaction], parsedWithAI: Bool) {
+    func addTransactionsToQueue(_ transactions: [ParsedTransaction], parsedWithAI: Bool, statementType: StatementType) {
         let queueStorage = SharedQueueStorage.shared
+        
+        // Convert StatementType to StatementSource
+        let source: SharedQueueStorage.StatementSource = statementType == .bank ? .bank : .creditCard
         
         // Add to bank statement queue (not SMS queue)
         let expenses = transactions.map { transaction in
@@ -649,7 +652,7 @@ extension PDFParserService {
                 currency: transaction.detectedCurrency
             )
         }
-        queueStorage.addMultipleFromBankStatement(expenses, parsedWithAI: parsedWithAI)
+        queueStorage.addMultipleFromBankStatement(expenses, parsedWithAI: parsedWithAI, source: source)
     }
 }
 

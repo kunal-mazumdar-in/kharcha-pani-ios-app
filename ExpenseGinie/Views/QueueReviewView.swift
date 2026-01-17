@@ -22,6 +22,23 @@ struct ReviewContentView: View {
         parsedExpenses.count + siriExpenses.count + bankStatementExpenses.count
     }
     
+    // Filtered views for bank vs credit card statements
+    private var bankOnlyExpenses: [ReviewBankStatementItem] {
+        bankStatementExpenses.filter { $0.bankStatementExpense.statementSource == .bank }
+    }
+    
+    private var creditCardOnlyExpenses: [ReviewBankStatementItem] {
+        bankStatementExpenses.filter { $0.bankStatementExpense.statementSource == .creditCard }
+    }
+    
+    // Helper to get binding for a bank statement item
+    private func bindingForBankItem(_ item: ReviewBankStatementItem) -> Binding<ReviewBankStatementItem>? {
+        guard let index = bankStatementExpenses.firstIndex(where: { $0.id == item.id }) else {
+            return nil
+        }
+        return $bankStatementExpenses[index]
+    }
+    
     var body: some View {
         Group {
             if totalPendingCount == 0 {
@@ -79,23 +96,50 @@ struct ReviewContentView: View {
                     }
                     
                     // Bank Statement expenses section
-                    if !bankStatementExpenses.isEmpty {
-                        Section("From Bank Statement (\(bankStatementExpenses.count))") {
-                            ForEach($bankStatementExpenses) { $item in
-                                ReviewBankStatementExpenseRow(
-                                    item: $item,
-                                    categories: categories,
-                                    onAdd: {
-                                        addBankStatementExpense(item)
+                    if !bankOnlyExpenses.isEmpty {
+                        Section("From Bank Statement (\(bankOnlyExpenses.count))") {
+                            ForEach(bankOnlyExpenses) { item in
+                                if let binding = bindingForBankItem(item) {
+                                    ReviewBankStatementExpenseRow(
+                                        item: binding,
+                                        categories: categories,
+                                        onAdd: {
+                                            addBankStatementExpense(item)
+                                        }
+                                    )
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                        Button(role: .destructive) {
+                                            removeBankStatementItem(item)
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
+                                        .tint(.red)
                                     }
-                                )
-                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                    Button(role: .destructive) {
-                                        removeBankStatementItem(item)
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Credit Card Statement expenses section
+                    if !creditCardOnlyExpenses.isEmpty {
+                        Section("From Credit Card Statement (\(creditCardOnlyExpenses.count))") {
+                            ForEach(creditCardOnlyExpenses) { item in
+                                if let binding = bindingForBankItem(item) {
+                                    ReviewBankStatementExpenseRow(
+                                        item: binding,
+                                        categories: categories,
+                                        onAdd: {
+                                            addBankStatementExpense(item)
+                                        }
+                                    )
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                        Button(role: .destructive) {
+                                            removeBankStatementItem(item)
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
+                                        .tint(.red)
                                     }
-                                    .tint(.red)
                                 }
                             }
                         }
