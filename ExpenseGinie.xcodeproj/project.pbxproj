@@ -28,6 +28,7 @@
 		A1000021 /* Budget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000022 /* Budget.swift */; };
 		A1000022 /* BudgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000023 /* BudgetView.swift */; };
 		A1000023 /* SplashScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000024 /* SplashScreenView.swift */; };
+		A1000030 /* PermissionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000030 /* PermissionsView.swift */; };
 		B1000001 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000001 /* ShareViewController.swift */; };
 		B1000002 /* SharedQueueStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000002 /* SharedQueueStorage.swift */; };
 		B1000003 /* ExpenseGinieShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B3000001 /* ExpenseGinieShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -80,6 +81,7 @@
 		A2000022 /* Budget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Budget.swift; sourceTree = "<group>"; };
 		A2000023 /* BudgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetView.swift; sourceTree = "<group>"; };
 		A2000024 /* SplashScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreenView.swift; sourceTree = "<group>"; };
+		A2000030 /* PermissionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsView.swift; sourceTree = "<group>"; };
 		A3000001 /* ExpenseGinie.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ExpenseGinie.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B2000001 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		B2000002 /* SharedQueueStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedQueueStorage.swift; sourceTree = "<group>"; };
@@ -189,6 +191,7 @@
 				A2000018 /* DataManagementView.swift */,
 				A2000023 /* BudgetView.swift */,
 				A2000024 /* SplashScreenView.swift */,
+				A2000030 /* PermissionsView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -323,6 +326,7 @@
 				A1000022 /* BudgetView.swift in Sources */,
 				A1000023 /* SplashScreenView.swift in Sources */,
 				A1000024 /* BillerMapping.swift in Sources */,
+				A1000030 /* PermissionsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -478,6 +482,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Expense Ginie";
+				INFOPLIST_KEY_NSSiriUsageDescription = "Expense Ginie uses Siri to let you add expenses with voice commands like 'Track Food expense in Expense Ginie'";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -509,6 +514,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Expense Ginie";
+				INFOPLIST_KEY_NSSiriUsageDescription = "Expense Ginie uses Siri to let you add expenses with voice commands like 'Track Food expense in Expense Ginie'";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

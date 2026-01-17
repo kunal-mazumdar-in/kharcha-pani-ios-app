@@ -35,6 +35,25 @@ struct AdminContentView: View {
                 }
             }
             
+            // Permissions Section
+            Section("Permissions") {
+                NavigationLink {
+                    PermissionsView()
+                } label: {
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Permissions")
+                            Text("Siri, Notifications & more")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "lock.shield.fill")
+                            .foregroundStyle(tintColor)
+                    }
+                }
+            }
+            
             // Configuration Section
             Section("Configuration") {
                 NavigationLink {

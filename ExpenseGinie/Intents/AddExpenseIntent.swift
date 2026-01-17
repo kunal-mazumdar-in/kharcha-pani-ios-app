@@ -39,8 +39,8 @@ struct ExpenseCategoryQuery: EntityQuery {
 
 // MARK: - Add Expense Intent
 struct AddExpenseIntent: AppIntent {
-    static var title: LocalizedStringResource = "Add Expense to Expense Ginie"
-    static var description = IntentDescription("Add a new expense to Expense Ginie")
+    static var title: LocalizedStringResource = "Track Expense in Expense Ginie"
+    static var description = IntentDescription("Track a new expense in Expense Ginie")
     
     // Required: Amount
     @Parameter(title: "Amount", description: "The expense amount in rupees")
@@ -140,7 +140,7 @@ struct AddExpenseIntent: AppIntent {
     }
     
     static var parameterSummary: some ParameterSummary {
-        Summary("Add \(\.$amount) rupees for \(\.$biller) to Expense Ginie") {
+        Summary("Track \(\.$amount) rupees for \(\.$biller) in Expense Ginie") {
             \.$category
             \.$date
         }
@@ -188,23 +188,24 @@ struct AddExpenseIntent: AppIntent {
         formatter.maximumFractionDigits = 0
         let formattedAmount = formatter.string(from: NSNumber(value: expenseAmount)) ?? "₹\(Int(expenseAmount))"
         
-        return .result(dialog: "Added \(formattedAmount) to \(finalCategory). Review in Expense Ginie.")
+        return .result(dialog: "Tracked \(formattedAmount) for \(finalCategory). Review in Expense Ginie.")
     }
 }
 
 // MARK: - App Shortcuts
 struct ExpenseGinieShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
-        // Shortcut with category parameter - "Add expense to Expense Ginie for Food"
+        // Shortcut with category parameter
+        // NOTE: Using "Track" to avoid conflicts with Siri's built-in Reminders ("Add")
         AppShortcut(
             intent: AddExpenseIntent(),
             phrases: [
-                "Add expense to \(.applicationName) for \(\.$category)",
-                "Log expense in \(.applicationName) for \(\.$category)",
-                "Add \(\.$category) expense to \(.applicationName)",
-                "\(\.$category) expense in \(.applicationName)"
+                "Track \(\.$category) expense in \(.applicationName)",
+                "Track \(\.$category) in \(.applicationName)",
+                "Track expense in \(.applicationName) for \(\.$category)",
+                "Track my \(\.$category) expense in \(.applicationName)"
             ],
-            shortTitle: "Add Expense",
+            shortTitle: "Track Expense",
             systemImageName: "indianrupeesign.circle.fill"
         )
     }
