@@ -2,9 +2,11 @@ import AppIntents
 import Foundation
 
 // MARK: - Category Entity for Siri
+// Short, Siri-friendly names that map to full category names
 struct ExpenseCategoryEntity: AppEntity {
     var id: String
-    var name: String
+    var name: String        // Short name for Siri voice commands
+    var fullName: String    // Full category name used in app
     
     static var typeDisplayRepresentation: TypeDisplayRepresentation = "Category"
     static var defaultQuery = ExpenseCategoryQuery()
@@ -13,17 +15,33 @@ struct ExpenseCategoryEntity: AppEntity {
         DisplayRepresentation(title: "\(name)")
     }
     
+    // Siri categories - short names for easy voice commands
+    // Maps to full category names in AppTheme.allCategories
     static let allCategories: [ExpenseCategoryEntity] = [
-        ExpenseCategoryEntity(id: "banking", name: "Banking"),
-        ExpenseCategoryEntity(id: "food", name: "Food"),
-        ExpenseCategoryEntity(id: "groceries", name: "Groceries"),
-        ExpenseCategoryEntity(id: "transport", name: "Transport"),
-        ExpenseCategoryEntity(id: "shopping", name: "Shopping"),
-        ExpenseCategoryEntity(id: "upi", name: "UPI"),
-        ExpenseCategoryEntity(id: "bills", name: "Bills"),
-        ExpenseCategoryEntity(id: "entertainment", name: "Entertainment"),
-        ExpenseCategoryEntity(id: "medical", name: "Medical"),
-        ExpenseCategoryEntity(id: "other", name: "Other")
+        ExpenseCategoryEntity(id: "housing", name: "Housing", fullName: "Housing & Rent"),
+        ExpenseCategoryEntity(id: "utilities", name: "Utilities", fullName: "Utilities"),
+        ExpenseCategoryEntity(id: "groceries", name: "Groceries", fullName: "Groceries"),
+        ExpenseCategoryEntity(id: "food", name: "Food", fullName: "Food & Dining"),
+        ExpenseCategoryEntity(id: "transport", name: "Transport", fullName: "Transport & Fuel"),
+        ExpenseCategoryEntity(id: "shopping", name: "Shopping", fullName: "Shopping"),
+        ExpenseCategoryEntity(id: "medical", name: "Medical", fullName: "Medical & Healthcare"),
+        ExpenseCategoryEntity(id: "entertainment", name: "Entertainment", fullName: "Entertainment"),
+        ExpenseCategoryEntity(id: "subscriptions", name: "Subscriptions", fullName: "Subscriptions"),
+        ExpenseCategoryEntity(id: "bills", name: "Bills", fullName: "Bills & Recharge"),
+        ExpenseCategoryEntity(id: "insurance", name: "Insurance", fullName: "Insurance"),
+        ExpenseCategoryEntity(id: "emi", name: "EMI", fullName: "Debt & EMI"),
+        ExpenseCategoryEntity(id: "investments", name: "Investments", fullName: "Investments"),
+        ExpenseCategoryEntity(id: "education", name: "Education", fullName: "Education & Learning"),
+        ExpenseCategoryEntity(id: "business", name: "Business", fullName: "Business Operations"),
+        ExpenseCategoryEntity(id: "travel", name: "Travel", fullName: "Travel & Vacation"),
+        ExpenseCategoryEntity(id: "taxes", name: "Taxes", fullName: "Taxes"),
+        ExpenseCategoryEntity(id: "gifts", name: "Gifts", fullName: "Gifts & Donations"),
+        ExpenseCategoryEntity(id: "family", name: "Family", fullName: "Family & Dependents"),
+        ExpenseCategoryEntity(id: "pet", name: "Pet", fullName: "Pet Care"),
+        ExpenseCategoryEntity(id: "vehicle", name: "Vehicle", fullName: "Vehicle Maintenance"),
+        ExpenseCategoryEntity(id: "banking", name: "Banking", fullName: "Banking & Fees"),
+        ExpenseCategoryEntity(id: "upi", name: "UPI", fullName: "UPI / Petty Cash"),
+        ExpenseCategoryEntity(id: "other", name: "Other", fullName: "Other")
     ]
 }
 
@@ -58,25 +76,29 @@ struct AddExpenseIntent: AppIntent {
     @Parameter(title: "Date", description: "The date of the expense")
     var date: Date?
     
-    // Map common biller names to categories
+    // Map common biller names to full category names (from AppTheme.allCategories)
     private static let billerCategoryMap: [String: String] = [
-        // Food
-        "swiggy": "Food",
-        "zomato": "Food",
-        "dominos": "Food",
-        "mcdonalds": "Food",
-        "starbucks": "Food",
-        "restaurant": "Food",
-        "food": "Food",
+        // Food & Dining
+        "swiggy": "Food & Dining",
+        "zomato": "Food & Dining",
+        "dominos": "Food & Dining",
+        "mcdonalds": "Food & Dining",
+        "starbucks": "Food & Dining",
+        "restaurant": "Food & Dining",
+        "food": "Food & Dining",
+        "cafe": "Food & Dining",
+        "dining": "Food & Dining",
         
-        // Transport
-        "uber": "Transport",
-        "ola": "Transport",
-        "rapido": "Transport",
-        "metro": "Transport",
-        "petrol": "Transport",
-        "fuel": "Transport",
-        "transport": "Transport",
+        // Transport & Fuel
+        "uber": "Transport & Fuel",
+        "ola": "Transport & Fuel",
+        "rapido": "Transport & Fuel",
+        "metro": "Transport & Fuel",
+        "petrol": "Transport & Fuel",
+        "fuel": "Transport & Fuel",
+        "transport": "Transport & Fuel",
+        "cab": "Transport & Fuel",
+        "taxi": "Transport & Fuel",
         
         // Shopping
         "amazon": "Shopping",
@@ -98,32 +120,59 @@ struct AddExpenseIntent: AppIntent {
         "grocery": "Groceries",
         "groceries": "Groceries",
         
-        // Medical
-        "pharmacy": "Medical",
-        "medical": "Medical",
-        "hospital": "Medical",
-        "doctor": "Medical",
-        "medicine": "Medical",
+        // Medical & Healthcare
+        "pharmacy": "Medical & Healthcare",
+        "medical": "Medical & Healthcare",
+        "hospital": "Medical & Healthcare",
+        "doctor": "Medical & Healthcare",
+        "medicine": "Medical & Healthcare",
         
-        // Bills
-        "electricity": "Bills",
-        "water": "Bills",
-        "internet": "Bills",
-        "phone": "Bills",
-        "rent": "Bills",
-        "bill": "Bills",
-        "bills": "Bills",
+        // Bills & Recharge
+        "electricity": "Bills & Recharge",
+        "water": "Bills & Recharge",
+        "internet": "Bills & Recharge",
+        "phone": "Bills & Recharge",
+        "recharge": "Bills & Recharge",
+        "bill": "Bills & Recharge",
+        "bills": "Bills & Recharge",
         
-        // Banking
-        "bank": "Banking",
-        "banking": "Banking",
-        "atm": "Banking",
+        // Housing & Rent
+        "rent": "Housing & Rent",
+        "housing": "Housing & Rent",
         
-        // UPI
-        "upi": "UPI",
-        "phonepe": "UPI",
-        "gpay": "UPI",
-        "paytm": "UPI"
+        // Subscriptions
+        "subscription": "Subscriptions",
+        "subscriptions": "Subscriptions",
+        
+        // Banking & Fees
+        "bank": "Banking & Fees",
+        "banking": "Banking & Fees",
+        "atm": "Banking & Fees",
+        
+        // UPI / Petty Cash
+        "upi": "UPI / Petty Cash",
+        "phonepe": "UPI / Petty Cash",
+        "gpay": "UPI / Petty Cash",
+        "paytm": "UPI / Petty Cash",
+        
+        // Travel & Vacation
+        "travel": "Travel & Vacation",
+        "vacation": "Travel & Vacation",
+        "hotel": "Travel & Vacation",
+        "flight": "Travel & Vacation",
+        
+        // Insurance
+        "insurance": "Insurance",
+        
+        // Debt & EMI
+        "emi": "Debt & EMI",
+        "loan": "Debt & EMI",
+        
+        // Education & Learning
+        "education": "Education & Learning",
+        "course": "Education & Learning",
+        "school": "Education & Learning",
+        "college": "Education & Learning"
     ]
     
     private func detectCategoryFromBiller(_ billerName: String) -> String? {
@@ -156,10 +205,10 @@ struct AddExpenseIntent: AppIntent {
         var finalCategory: String
         
         if let selectedCategory = category {
-            // Category provided via voice command
-            finalCategory = selectedCategory.name
+            // Category provided via voice command - use full name for storage
+            finalCategory = selectedCategory.fullName
         } else if let billerName = biller, let detectedCategory = detectCategoryFromBiller(billerName) {
-            // Auto-detect from biller
+            // Auto-detect from biller (already returns full category name)
             finalCategory = detectedCategory
         } else {
             // Ask for category

@@ -512,10 +512,6 @@ struct ReviewPendingExpenseRow: View {
             }
         }
         .padding(.vertical, 2)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            isTextExpanded.toggle()
-        }
         .sheet(isPresented: $showingEditSheet) {
             EditExpenseSheet(
                 amount: item.finalAmount,
@@ -783,10 +779,6 @@ struct ReviewBankStatementExpenseRow: View {
             }
         }
         .padding(.vertical, 2)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            isTextExpanded.toggle()
-        }
         .sheet(isPresented: $showingEditSheet) {
             EditExpenseSheet(
                 amount: item.finalAmount,

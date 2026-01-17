@@ -214,7 +214,7 @@ struct HomeView: View {
                 
                 // Categories Section
                 if !categoryTotals.isEmpty {
-                    Section("Categories") {
+                    Section("Categories • \(selectedFilter.displayName)") {
                         ForEach(categoryTotals) { item in
                             NavigationLink(destination: CategoryDetailView(
                                 category: item.category,
